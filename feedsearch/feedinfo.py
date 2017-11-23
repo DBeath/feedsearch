@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Tuple
 from urllib import parse as urlparse
+from feedsearch.requests_session import get_session
 
 import feedparser
 import requests

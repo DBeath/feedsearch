@@ -6,7 +6,7 @@ from urllib.parse import urlsplit, urljoin
 from bs4 import BeautifulSoup
 
 from feedsearch.feedinfo import FeedInfo
-from feedsearch.requests_session import RequestsSession, requests_session
+from feedsearch.requests_session import requests_session, get_session
 
 logger = logging.getLogger('feedsearch')
 
@@ -32,16 +32,14 @@ def get_site_root(url: str) -> str:
 
 class FeedFinder:
     def __init__(self,
-                 session,
                  get_feed_info=False,
                  timeout=(3.05, 10)):
-        self.session = session
         self.get_feed_info = get_feed_info
         self.timeout = timeout
 
     def get_url(self, url: str):
         try:
-            r = self.session.get(url, timeout=self.timeout)
+            r = get_session().get(url, timeout=self.timeout)
         except Exception as e:
             logger.warning(u'Error while getting URL: {0}, {1}'
                            .format(url, str(e)))
@@ -137,10 +135,9 @@ class FeedFinder:
 def find_feeds(url: str,
                check_all: bool=False,
                get_feed_info: bool=False,
-               timeout: tuple=(3.05, 10),
-               **kwargs) -> list:
+               timeout: tuple=(3.05, 10)) -> list:
 
-    finder = FeedFinder(kwargs.get('session'), get_feed_info=get_feed_info, timeout=timeout)
+    finder = FeedFinder(get_feed_info=get_feed_info, timeout=timeout)
 
     # Format the URL properly.
     url = coerce_url(url)

@@ -1,51 +1,50 @@
-import requests
 import functools
+import requests
+from werkzeug.local import Local, release_local
+
+REQUEST_SESSION = Local()
+
+def get_session():
+    return getattr(REQUEST_SESSION, 'session', None)
 
 
 def get_user_agent():
     """
     Return User Agent string
     """
-    return "FeedSearch (https://github.com/DBeath/feedsearch)"
+    return "FeedSearch/0.1 (https://github.com/DBeath/feedsearch)"
 
 
-class RequestsSession:
-    """
-    Set default User-Agent and max_redirects for a Requests session
-    """
-    def __init__(self,
-                 user_agent=None,
-                 max_redirects=30):
-        self.user_agent = user_agent or get_user_agent()
-        self.max_redirects = max_redirects or 30
-
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": self.user_agent})
-        self.session.max_redirects = self.max_redirects
-
-    def __enter__(self):
-        return self.session
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.session.close()
-
-
-def requests_session(*optional_args, **optional_kwargs):
+def requests_session(user_agent=get_user_agent(), max_redirects=30):
     """
     Wraps a requests session around a function.
-    Optional keyword arguments are passed to wrapped function.
 
-    :param optional_kwargs: Optional keyword arguments
+    :param user_agent: User Agent for requests
+    :param max_redirects: Maximum number of redirects
     :return: decorator function
     """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            kwargs.update(optional_kwargs)
-            with RequestsSession(kwargs.get('user_agent'),
-                                 kwargs.get('max_redirects')) as session:
-                kwargs['session'] = session
-                result = func(*args, **kwargs)
+            # Create a request session
+            session = requests.session()
+            session.headers.update({"User-Agent": user_agent})
+            session.max_redirects = max_redirects
+
+            # Add request session to local context
+            setattr(REQUEST_SESSION, 'session', session)
+
+            # Call wrapped function
+            result = func(*args, **kwargs)
+
+            # Close request session
+            get_session().close()
+
+            # Clean up local context
+            release_local(REQUEST_SESSION)
+
             return result
+
         return wrapper
+
     return decorator
