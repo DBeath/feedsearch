@@ -1,15 +1,14 @@
 import json
 import logging
+import base64
 from typing import Tuple
 from urllib import parse as urlparse
-from feedsearch.requests_session import get_session
+from feedsearch.requests_session import get_session, get_url
 
 import feedparser
 import requests
 from bs4 import BeautifulSoup
 from marshmallow import Schema, fields, post_load
-
-logger = logging.getLogger('feedsearch')
 
 
 class FeedInfoSchema(Schema):
@@ -22,6 +21,7 @@ class FeedInfoSchema(Schema):
     subscribed = fields.Boolean(allow_none=True)
     hub = fields.Url(allow_none=True)
     score = fields.Integer(allow_none=True)
+    site_icon_datauri = fields.String(allow_none=True)
 
     @post_load
     def make_feed_info(self, data):
@@ -49,6 +49,7 @@ class FeedInfo:
         self.subscribed = subscribed
         self.is_push = is_push
         self.score = None
+        self.site_icon_datauri = None
 
     def __repr__(self):
         return 'FeedInfo: {0}'.format(self.url)
@@ -83,6 +84,8 @@ class FeedInfo:
             self.site_url = self.find_site_url(soup, self.site_url)
             domain = self.domain(self.site_url)
             self.site_icon_url = self.find_site_icon_url(soup, domain)
+            # if self.site_icon_url:
+            #     self.site_icon_datauri = self.create_data_uri(self.site_icon_url)
 
     @staticmethod
     def parse_feed(text: str) -> dict:
@@ -167,7 +170,7 @@ class FeedInfo:
         if not icon:
             send_url = url + '/favicon.ico'
             print('Trying url {0} for favicon'.format(send_url))
-            r = self.finder.get_url(send_url)
+            r = get_url(send_url)
             if r:
                 print('Received url {0}'.format(r.url))
                 if r.status_code == requests.codes.ok:
@@ -198,7 +201,7 @@ class FeedInfo:
         feed = parsed.get('feed', None)
         links = feed.get('links', None)
         if links is None:
-            logger.warning(u'No feed links found')
+            logging.warning(u'No feed links found')
             return '', ''
 
         try:
@@ -210,7 +213,7 @@ class FeedInfo:
                 if link.get('id', None) == 'auto-discovery':
                     autodiscovery_url = link['href']
         except AttributeError as e:
-            logger.warning(u'Attribute Error getting feed links: {0}'
+            logging.warning(u'Attribute Error getting feed links: {0}'
                            .format(e))
             return '', ''
 
@@ -218,6 +221,21 @@ class FeedInfo:
             return FeedInfo.pubsubhubbub_links(autodiscovery_url)
 
         return hub_url, self_url
+
+    @staticmethod
+    def create_data_uri(img_url):
+        r = get_url(img_url)
+        if not r or not r.content:
+            return None
+
+        uri = None
+        try:
+            encoded = base64.b64encode(r.content)
+            uri = "data:image/png;base64," + encoded.decode("utf-8")
+        except Exception as e:
+            logging.warning(u'Failure encoding image: {0}'.format(e))
+
+        return uri
 
     def serialize(self):
         return json.dumps(

@@ -1,8 +1,11 @@
 import functools
 import requests
+import logging
 from werkzeug.local import Local, release_local
 
 REQUEST_SESSION = Local()
+
+logger = logging.getLogger('feedsearch')
 
 def get_session():
     return getattr(REQUEST_SESSION, 'session', None)
@@ -48,3 +51,13 @@ def requests_session(user_agent=get_user_agent(), max_redirects=30):
         return wrapper
 
     return decorator
+
+
+def get_url(url, timeout=(3.05, 10)):
+    try:
+        response = get_session().get(url, timeout=timeout)
+    except Exception as e:
+        logger.warning(u'Error while getting URL: {0}, {1}'
+                       .format(url, str(e)))
+        return None
+    return response
