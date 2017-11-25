@@ -6,7 +6,9 @@ from urllib.parse import urlsplit, urljoin
 from bs4 import BeautifulSoup
 
 from feedsearch.feedinfo import FeedInfo
-from feedsearch.requests_session import requests_session, get_session, get_url
+from feedsearch.lib import (requests_session,
+                            get_url,
+                            create_soup)
 
 
 def coerce_url(url: str) -> str:
@@ -34,6 +36,7 @@ class FeedFinder:
                  timeout=(3.05, 10)):
         self.get_feed_info = get_feed_info
         self.timeout = timeout
+        self.parsed_soup = None
 
     @staticmethod
     def is_feed_data(text: str) -> bool:
@@ -90,9 +93,6 @@ class FeedFinder:
     def soup(self) -> BeautifulSoup:
         return self.parsed_soup
 
-    def create_soup(self, text: str) -> None:
-        self.parsed_soup = BeautifulSoup(text, 'html.parser')
-
     def search_links(self, url: str) -> list:
         links = []
         for link in self.soup.find_all("link"):
@@ -147,7 +147,7 @@ def find_feeds(url: str,
     text = response.text
 
     # Parse text with BeautifulSoup
-    finder.create_soup(text)
+    finder.parsed_soup = create_soup(text)
 
     # Check if it is already a feed.
     if finder.is_feed_data(text):

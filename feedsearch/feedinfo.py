@@ -1,14 +1,15 @@
+import base64
 import json
 import logging
-import base64
 from typing import Tuple
 from urllib import parse as urlparse
-from feedsearch.requests_session import get_session, get_url
 
 import feedparser
 import requests
 from bs4 import BeautifulSoup
 from marshmallow import Schema, fields, post_load
+
+from feedsearch.lib import get_url, bs4_parser
 
 
 class FeedInfoSchema(Schema):
@@ -102,7 +103,7 @@ class FeedInfo:
     @staticmethod
     def clean_title(title: str) -> str:
         try:
-            title = BeautifulSoup(title, 'html.parser').get_text()
+            title = BeautifulSoup(title, bs4_parser).get_text()
             if len(title) > 1024:
                 title = title[:1020] + u'...'
             return title
