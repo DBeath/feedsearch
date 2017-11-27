@@ -4,8 +4,9 @@ import logging
 import requests
 from bs4 import BeautifulSoup
 from werkzeug.local import Local, release_local
+from werkzeug.urls import url_parse, url_fix, url_unparse
 
-REQUEST_SESSION = Local()
+LOCAL_CONTEXT = Local()
 
 logger = logging.getLogger('feedsearch')
 
@@ -19,7 +20,7 @@ def get_session():
 
     :return: Requests Session
     """
-    return getattr(REQUEST_SESSION, 'session', _create_request_session())
+    return getattr(LOCAL_CONTEXT, 'session', _create_request_session())
 
 
 def _user_agent():
@@ -49,7 +50,7 @@ def _create_request_session(user_agent=None, max_redirects=30):
     session.max_redirects = max_redirects
 
     # Add request session to local context
-    setattr(REQUEST_SESSION, 'session', session)
+    setattr(LOCAL_CONTEXT, 'session', session)
 
     return session
 
@@ -73,13 +74,25 @@ def requests_session(user_agent=None, max_redirects=30):
             get_session().close()
 
             # Clean up local context
-            release_local(REQUEST_SESSION)
+            release_local(LOCAL_CONTEXT)
 
             return result
 
         return wrapper
 
     return decorator
+
+
+def set_bs4_parser(parser: str) -> None:
+    """
+    Sets the parser used by BeautifulSoup
+
+    :param parser: BeautifulSoup parser
+    :return: None
+    """
+    if parser:
+        global bs4_parser
+        bs4_parser = parser
 
 
 def get_url(url, timeout=(10.05, 30)):
@@ -108,13 +121,60 @@ def create_soup(text: str) -> BeautifulSoup:
     """
     return BeautifulSoup(text, bs4_parser)
 
-def set_bs4_parser(parser: str) -> None:
-    """
-    Sets the parser used by BeautifulSoup
 
-    :param parser: BeautifulSoup parser
-    :return: None
+def coerce_url(url: str) -> str:
     """
-    if parser:
-        global bs4_parser
-        bs4_parser = parser
+    Coerce URL to valid format
+
+    :param url: URL
+    :return: str
+    """
+    url.strip()
+    if url.startswith("feed://"):
+        return url_fix("http://{0}".format(url[7:]))
+    for proto in ["http://", "https://"]:
+        if url.startswith(proto):
+            return url_fix(url)
+    return url_fix("http://{0}".format(url))
+
+
+def get_site_root(url: str) -> str:
+    """
+    Find the root domain of a url
+    """
+    url = coerce_url(url)
+    parsed = url_parse(url, scheme='http')
+    return parsed.netloc
+
+
+def is_feed_data(text: str) -> bool:
+    data = text.lower()
+    if data.count('<html'):
+        return False
+    return bool(data.count('<rss') +
+                data.count('<rdf') +
+                data.count('<feed'))
+
+
+def is_feed(url: str) -> str:
+    response = get_url(url)
+
+    if not response or not response.text or not is_feed_data(response.text):
+        return ''
+
+    return response.text
+
+
+def is_feed_url(url: str) -> bool:
+    return any(map(url.lower().endswith, [".rss",
+                                          ".rdf",
+                                          ".xml",
+                                          ".atom"]))
+
+
+def is_feedlike_url(url: str) -> bool:
+    return any(map(url.lower().count, ["rss",
+                                       "rdf",
+                                       "xml",
+                                       "atom",
+                                       "feed"]))

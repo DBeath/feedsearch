@@ -1,15 +1,15 @@
-import base64
+
 import json
 import logging
 from typing import Tuple
-from urllib import parse as urlparse
 
 import feedparser
-import requests
 from bs4 import BeautifulSoup
 from marshmallow import Schema, fields, post_load
 
-from feedsearch.lib import get_url, bs4_parser
+from feedsearch.lib import (get_url,
+                            bs4_parser,
+                            is_feed)
 
 
 class FeedInfoSchema(Schema):
@@ -22,7 +22,7 @@ class FeedInfoSchema(Schema):
     subscribed = fields.Boolean(allow_none=True)
     hub = fields.Url(allow_none=True)
     score = fields.Integer(allow_none=True)
-    site_icon_datauri = fields.String(allow_none=True)
+    site_icon_data_uri = fields.String(allow_none=True)
 
     @post_load
     def make_feed_info(self, data):
@@ -50,7 +50,7 @@ class FeedInfo:
         self.subscribed = subscribed
         self.is_push = is_push
         self.score = None
-        self.site_icon_datauri = None
+        self.site_icon_data_uri = None
 
     def __repr__(self):
         return 'FeedInfo: {0}'.format(self.url)
@@ -61,10 +61,7 @@ class FeedInfo:
     def __hash__(self):
         return hash(self.url)
 
-    def get_info(self, text: str=None, soup=None, finder=None):
-        if finder:
-            self.finder = finder
-
+    def get_info(self, text: str=None, soup=None):
         if text:
             parsed = self.parse_feed(text)
             self.title = self.feed_title(parsed)
@@ -73,20 +70,12 @@ class FeedInfo:
             if self.hub and self_url:
                 self.is_push = True
 
-            if self_url and self.finder is not None:
+            if self_url:
                 if self_url != self.url:
-                    text = self.finder.is_feed(self_url)
+                    text = is_feed(self_url)
                     if text:
                         self.url = self_url
                         return self.get_info(text, soup)
-
-        if soup:
-            self.site_name = self.find_site_name(soup)
-            self.site_url = self.find_site_url(soup, self.site_url)
-            domain = self.domain(self.site_url)
-            self.site_icon_url = self.find_site_icon_url(soup, domain)
-            # if self.site_icon_url:
-            #     self.site_icon_datauri = self.create_data_uri(self.site_icon_url)
 
     @staticmethod
     def parse_feed(text: str) -> dict:
@@ -119,70 +108,6 @@ class FeedInfo:
             return subtitle
         else:
             return feed.get('description', None)
-
-    @staticmethod
-    def find_site_name(soup) -> str:
-        site_name_meta = [
-            'og:site_name',
-            'og:title',
-            'application:name',
-            'twitter:app:name:iphone'
-        ]
-
-        for p in site_name_meta:
-            try:
-                name = soup.find(name='meta', property=p).get('content')
-                if name:
-                    return name
-            except AttributeError:
-                pass
-        return ''
-
-    @staticmethod
-    def find_site_url(soup, url: str) -> str:
-        canonical = soup.find(name='link', rel='canonical')
-        try:
-            site = canonical.get('href')
-            if site:
-                return site
-        except AttributeError:
-            pass
-
-        meta = soup.find(name='meta', property='og:url')
-        try:
-            site = meta.get('content')
-            if site:
-                return site
-        except AttributeError:
-            return url
-
-    def find_site_icon_url(self, soup, url) -> str:
-        icon_rel = ['apple-touch-icon', 'shortcut icon', 'icon']
-
-        icon = ''
-        for r in icon_rel:
-            rel = soup.find(name='link', rel=r)
-            if rel:
-                icon = rel.get('href', None)
-                if icon[0] == '/':
-                    icon = '{0}{1}'.format(url, icon)
-                if icon == 'favicon.ico':
-                    icon = '{0}/{1}'.format(url, icon)
-        if not icon:
-            send_url = url + '/favicon.ico'
-            print('Trying url {0} for favicon'.format(send_url))
-            r = get_url(send_url)
-            if r:
-                print('Received url {0}'.format(r.url))
-                if r.status_code == requests.codes.ok:
-                    icon = r.url
-        return icon
-
-    @staticmethod
-    def domain(url: str) -> str:
-        parsed = urlparse.urlparse(url)
-        domain = '{uri.scheme}://{uri.netloc}'.format(uri=parsed)
-        return domain
 
     @staticmethod
     def pubsubhubbub_links(parsed: dict) -> Tuple[str, str]:
@@ -223,20 +148,11 @@ class FeedInfo:
 
         return hub_url, self_url
 
-    @staticmethod
-    def create_data_uri(img_url):
-        r = get_url(img_url)
-        if not r or not r.content:
-            return None
-
-        uri = None
-        try:
-            encoded = base64.b64encode(r.content)
-            uri = "data:image/png;base64," + encoded.decode("utf-8")
-        except Exception as e:
-            logging.warning(u'Failure encoding image: {0}'.format(e))
-
-        return uri
+    def add_site_info(self, url, name, icon, icon_data_uri):
+        self.site_url = url
+        self.site_name = name
+        self.site_icon_url = icon
+        self.site_icon_data_uri = icon_data_uri
 
     def serialize(self):
         return json.dumps(

@@ -6,28 +6,16 @@ from urllib.parse import urlsplit, urljoin
 from bs4 import BeautifulSoup
 
 from feedsearch.feedinfo import FeedInfo
+from feedsearch.site_meta import SiteMeta
 from feedsearch.lib import (requests_session,
                             get_url,
-                            create_soup)
-
-
-def coerce_url(url: str) -> str:
-    url = url.strip()
-    if url.startswith("feed://"):
-        return "http://{0}".format(url[7:])
-    for proto in ["http://", "https://"]:
-        if url.startswith(proto):
-            return url
-    return "https://{0}".format(url)
-
-
-def get_site_root(url: str) -> str:
-    """
-    Find the root domain of a url
-    """
-    url = coerce_url(url)
-    parsed = urlsplit(url)
-    return parsed.netloc
+                            create_soup,
+                            coerce_url,
+                            get_site_root,
+                            is_feed,
+                            is_feedlike_url,
+                            is_feed_url,
+                            is_feed_data)
 
 
 class FeedFinder:
@@ -37,43 +25,12 @@ class FeedFinder:
         self.get_feed_info = get_feed_info
         self.timeout = timeout
         self.parsed_soup = None
-
-    @staticmethod
-    def is_feed_data(text: str) -> bool:
-        data = text.lower()
-        if data.count('<html'):
-            return False
-        return bool(data.count('<rss') +
-                    data.count('<rdf') +
-                    data.count('<feed'))
-
-    def is_feed(self, url: str) -> str:
-        response = get_url(url)
-
-        if not response or not response.text or not self.is_feed_data(response.text):
-            return ''
-
-        return response.text
-
-    @staticmethod
-    def is_feed_url(url: str) -> bool:
-        return any(map(url.lower().endswith, [".rss",
-                                              ".rdf",
-                                              ".xml",
-                                              ".atom"]))
-
-    @staticmethod
-    def is_feedlike_url(url: str) -> bool:
-        return any(map(url.lower().count, ["rss",
-                                           "rdf",
-                                           "xml",
-                                           "atom",
-                                           "feed"]))
+        self.site_meta = None
 
     def check_urls(self, urls: list) -> list:
         feeds = []
         for url in urls:
-            url_text = self.is_feed(url)
+            url_text = is_feed(url)
             if url_text:
                 feed = self.create_feed_info(url, url_text)
                 feeds.append(feed)
@@ -85,7 +42,13 @@ class FeedFinder:
 
         if self.get_feed_info:
             logging.info(u'Getting FeedInfo for {0}'.format(url))
-            info.get_info(text=text, soup=self.soup, finder=self)
+            info.get_info(text=text, soup=self.soup)
+
+            if self.site_meta:
+                info.add_site_info(self.site_meta.site_url,
+                                   self.site_meta.site_name,
+                                   self.site_meta.icon_url,
+                                   self.site_meta.icon_data_uri)
 
         return info
 
@@ -112,12 +75,17 @@ class FeedFinder:
             href = a.get("href", None)
             if href is None:
                 continue
-            if "://" not in href and self.is_feed_url(href):
+            if "://" not in href and is_feed_url(href):
                 local.append(href)
-            if self.is_feedlike_url(href):
+            if is_feedlike_url(href):
                 remote.append(href)
 
         return local, remote
+
+    def get_site_info(self, url):
+        if self.get_feed_info:
+            self.site_meta = SiteMeta(url)
+            self.site_meta.parse_site_info()
 
 
 @requests_session()
@@ -149,8 +117,11 @@ def find_feeds(url: str,
     # Parse text with BeautifulSoup
     finder.parsed_soup = create_soup(text)
 
+    # Get site metadata
+    finder.get_site_info(url)
+
     # Check if it is already a feed.
-    if finder.is_feed_data(text):
+    if is_feed_data(text):
 
         found = finder.create_feed_info(url, text)
         feeds.append(found)
