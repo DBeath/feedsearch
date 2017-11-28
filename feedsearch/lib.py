@@ -1,16 +1,19 @@
 import functools
 import logging
+from contextlib import contextmanager
 
 import requests
 from bs4 import BeautifulSoup
 from werkzeug.local import Local, release_local
-from werkzeug.urls import url_parse, url_fix, url_unparse
+from werkzeug.urls import url_parse, url_fix
 
 LOCAL_CONTEXT = Local()
 
 logger = logging.getLogger('feedsearch')
 
 bs4_parser = 'html.parser'
+
+default_timeout = (10.05, 30)
 
 
 def get_session():
@@ -20,7 +23,15 @@ def get_session():
 
     :return: Requests Session
     """
-    return getattr(LOCAL_CONTEXT, 'session', _create_request_session())
+    return getattr(LOCAL_CONTEXT, 'session', create_requests_session())
+
+def get_timeout():
+    """
+    Returns the Request timeout for the current local context.
+
+    :return: Request timeout
+    """
+    return getattr(LOCAL_CONTEXT, 'timeout', default_timeout)
 
 
 def _user_agent():
@@ -32,7 +43,8 @@ def _user_agent():
     return "FeedSearch/0.1 (https://github.com/DBeath/feedsearch)"
 
 
-def _create_request_session(user_agent=None, max_redirects=30):
+@contextmanager
+def create_requests_session(user_agent=None, max_redirects=30, timeout=default_timeout):
     """
     Creates a Requests Session and sets User-Agent header and Max Redirects
 
@@ -51,8 +63,16 @@ def _create_request_session(user_agent=None, max_redirects=30):
 
     # Add request session to local context
     setattr(LOCAL_CONTEXT, 'session', session)
+    setattr(LOCAL_CONTEXT, 'timeout', timeout)
 
-    return session
+    yield session
+
+    # Close request session
+    session.close()
+
+    # Clean up local context
+    release_local(LOCAL_CONTEXT)
+
 
 def requests_session(user_agent=None, max_redirects=30):
     """
@@ -65,18 +85,9 @@ def requests_session(user_agent=None, max_redirects=30):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            _create_request_session(user_agent, max_redirects)
-
-            # Call wrapped function
-            result = func(*args, **kwargs)
-
-            # Close request session
-            get_session().close()
-
-            # Clean up local context
-            release_local(LOCAL_CONTEXT)
-
-            return result
+            with create_requests_session(user_agent, max_redirects):
+                # Call wrapped function
+                return func(*args, **kwargs)
 
         return wrapper
 
@@ -95,14 +106,15 @@ def set_bs4_parser(parser: str) -> None:
         bs4_parser = parser
 
 
-def get_url(url, timeout=(10.05, 30)):
+def get_url(url, timeout=None):
     """
     Performs a GET request on a URL
 
     :param url: URL string
-    :param timeout: Optional Timeout Tuple
+    :param timeout: Optional Request Timeout
     :return: Requests Response object
     """
+    timeout = timeout if timeout else get_timeout()
     try:
         response = get_session().get(url, timeout=timeout)
     except Exception as e:

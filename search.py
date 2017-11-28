@@ -3,7 +3,7 @@ from pprint import pprint
 
 import click
 
-from feedsearch.feedfinder import find_feeds
+from feedsearch import find
 from feedsearch.lib import set_bs4_parser
 
 
@@ -17,8 +17,9 @@ def search(url, checkall, feedinfo, parser):
     logging.basicConfig(level=logging.INFO)
     set_bs4_parser(parser)
     click.echo('Searching URL {0}'.format(url))
-    feeds = find_feeds(url=url, check_all=checkall, get_feed_info=feedinfo)
+    feeds = find(url=url, check_all=checkall, get_feed_info=feedinfo)
     for feed in feeds:
+        print()
         pprint(vars(feed))
 
 

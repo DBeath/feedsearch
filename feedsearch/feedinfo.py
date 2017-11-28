@@ -7,8 +7,7 @@ import feedparser
 from bs4 import BeautifulSoup
 from marshmallow import Schema, fields, post_load
 
-from feedsearch.lib import (get_url,
-                            bs4_parser,
+from feedsearch.lib import (bs4_parser,
                             is_feed)
 
 
@@ -38,7 +37,6 @@ class FeedInfo:
                  site_name: str = None,
                  site_icon_url: str = None,
                  hub: str = None,
-                 subscribed: bool = False,
                  is_push: bool = False) -> None:
         self.url = url
         self.site_url = site_url
@@ -47,7 +45,6 @@ class FeedInfo:
         self.site_name = site_name
         self.site_icon_url = site_icon_url
         self.hub = hub
-        self.subscribed = subscribed
         self.is_push = is_push
         self.score = None
         self.site_icon_data_uri = None

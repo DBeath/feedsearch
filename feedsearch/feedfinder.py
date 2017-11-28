@@ -1,29 +1,28 @@
 import logging
 import time
 from typing import Tuple
-from urllib.parse import urlsplit, urljoin
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
 from feedsearch.feedinfo import FeedInfo
-from feedsearch.site_meta import SiteMeta
-from feedsearch.lib import (requests_session,
-                            get_url,
+from feedsearch.lib import (get_url,
                             create_soup,
                             coerce_url,
                             get_site_root,
                             is_feed,
                             is_feedlike_url,
                             is_feed_url,
-                            is_feed_data)
+                            is_feed_data,
+                            create_requests_session,
+                            default_timeout)
+from feedsearch.site_meta import SiteMeta
 
 
 class FeedFinder:
     def __init__(self,
-                 get_feed_info=False,
-                 timeout=(3.05, 10)):
+                 get_feed_info=False):
         self.get_feed_info = get_feed_info
-        self.timeout = timeout
         self.parsed_soup = None
         self.site_meta = None
 
@@ -88,13 +87,28 @@ class FeedFinder:
             self.site_meta.parse_site_info()
 
 
-@requests_session()
+def find(url, check_all=False, get_feed_info=False, timeout=default_timeout, user_agent=None, max_redirects=30):
+    """
+    Find RSS or ATOM feeds at a given URL
+
+    :param url: URL
+    :param check_all: Check all <link> and <a> tags on page
+    :param get_feed_info: Get Feed and Site Metadata
+    :param timeout: Request timeout
+    :param user_agent: User-Agent Header string
+    :param max_redirects: Maximum Request redirects
+    :return: List of found feeds as FeedInfo objects.
+             FeedInfo objects will always have a .url value.
+    """
+    with create_requests_session(user_agent, max_redirects, timeout):
+        return find_feeds(url, check_all, get_feed_info)
+
+
 def find_feeds(url: str,
                check_all: bool=False,
-               get_feed_info: bool=False,
-               timeout: tuple=(3.05, 10)) -> list:
+               get_feed_info: bool=False) -> list:
 
-    finder = FeedFinder(get_feed_info=get_feed_info, timeout=timeout)
+    finder = FeedFinder(get_feed_info=get_feed_info)
 
     # Format the URL properly.
     url = coerce_url(url)

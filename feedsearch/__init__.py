@@ -1,0 +1,1 @@
+from .feedfinder import find
