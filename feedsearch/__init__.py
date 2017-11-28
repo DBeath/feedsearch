@@ -1,1 +1,1 @@
-from .feedfinder import find
+from .feedsearch import search

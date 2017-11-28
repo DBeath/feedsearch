@@ -1,8 +1,8 @@
 import logging
-import time
 from typing import Tuple
 from urllib.parse import urljoin
 
+import time
 from bs4 import BeautifulSoup
 
 from feedsearch.feedinfo import FeedInfo
@@ -15,7 +15,8 @@ from feedsearch.lib import (get_url,
                             is_feed_url,
                             is_feed_data,
                             create_requests_session,
-                            default_timeout)
+                            default_timeout,
+                            set_bs4_parser)
 from feedsearch.site_meta import SiteMeta
 
 
@@ -68,7 +69,6 @@ class FeedFinder:
         return self.check_urls(links)
 
     def search_a_tags(self, url: str) -> Tuple[list, list]:
-        logging.info("Looking for <a> tags.")
         local, remote = [], []
         for a in self.soup.find_all("a"):
             href = a.get("href", None)
@@ -87,21 +87,33 @@ class FeedFinder:
             self.site_meta.parse_site_info()
 
 
-def find(url, check_all=False, get_feed_info=False, timeout=default_timeout, user_agent=None, max_redirects=30):
+def search(url,
+           check_all=False,
+           info=False,
+           timeout=default_timeout,
+           user_agent=None,
+           max_redirects=30,
+           parser='html.parser'):
     """
-    Find RSS or ATOM feeds at a given URL
+    Search for RSS or ATOM feeds at a given URL
 
     :param url: URL
     :param check_all: Check all <link> and <a> tags on page
-    :param get_feed_info: Get Feed and Site Metadata
+    :param info: Get Feed and Site Metadata
     :param timeout: Request timeout
     :param user_agent: User-Agent Header string
     :param max_redirects: Maximum Request redirects
+    :param parser: BeautifulSoup parser ('html.parser', 'lxml', etc.). Defaults to 'html.parser'
     :return: List of found feeds as FeedInfo objects.
              FeedInfo objects will always have a .url value.
     """
+
+    # Wrap find_feeds in a Requests session
     with create_requests_session(user_agent, max_redirects, timeout):
-        return find_feeds(url, check_all, get_feed_info)
+        # Set BeautifulSoup parser
+        set_bs4_parser(parser)
+        # Find feeds
+        return find_feeds(url, check_all, info)
 
 
 def find_feeds(url: str,
@@ -142,7 +154,7 @@ def find_feeds(url: str,
         return feeds
 
     # Search for <link> tags
-    logging.info("Looking for <link> tags.")
+    logging.debug("Looking for <link> tags.")
     found_links = finder.search_links(url)
     feeds.extend(found_links)
     logging.info("Found {0} feed <link> tags.".format(len(found_links)))
@@ -154,7 +166,7 @@ def find_feeds(url: str,
         return sort_urls(feeds, url)
 
     # Look for <a> tags.
-    logging.info("Looking for <a> tags.")
+    logging.debug("Looking for <a> tags.")
     local, remote = finder.search_a_tags(url)
 
     # Check the local URLs.
@@ -207,7 +219,7 @@ def url_feed_score(url: str, original_url: str=None) -> int:
         url_domain = get_site_root(url)
         original_domain = get_site_root(original_url)
 
-        if url_domain not in original_domain:
+        if original_domain not in url_domain:
             score -= 17
 
     if "comments" in url:
@@ -216,13 +228,12 @@ def url_feed_score(url: str, original_url: str=None) -> int:
         score -= 9
     if "alt" in url:
         score -= 7
-    kw = ["rss", "atom", ".xml", "feed", "rdf"]
+    kw = ["atom", "rss", ".xml", "feed", "rdf"]
     for p, t in zip(range(len(kw) * 2, 0, -2), kw):
         if t in url:
             score += p
     if url.startswith('https'):
         score += 9
-    print('Url: {0}, Score: {1}'.format(url, score))
     return score
 
 
@@ -234,7 +245,6 @@ def sort_urls(feeds, original_url=None):
     :param original_url: Searched Url
     :return: List of FeedInfo objects
     """
-    print('Sorting feeds: {0}'.format(feeds))
     for feed in feeds:
         feed.score = url_feed_score(feed.url, original_url)
     sorted_urls = sorted(

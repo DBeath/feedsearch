@@ -13,10 +13,9 @@ name = "pypi"
 
 requests = "*"
 "beautifulsoup4" = "*"
-marshmallow = "*"
 feedparser = "*"
 click = "*"
-werkzeug = "*"
+Werkzeug = "*"
 
 
 [requires]

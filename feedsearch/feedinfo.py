@@ -1,31 +1,12 @@
-
 import json
 import logging
 from typing import Tuple
 
 import feedparser
 from bs4 import BeautifulSoup
-from marshmallow import Schema, fields, post_load
 
 from feedsearch.lib import (bs4_parser,
                             is_feed)
-
-
-class FeedInfoSchema(Schema):
-    url = fields.Url()
-    site_url = fields.Url(allow_none=True)
-    title = fields.String(allow_none=True)
-    description = fields.String(allow_none=True)
-    site_name = fields.String(allow_none=True)
-    site_icon_url = fields.Url(allow_none=True)
-    subscribed = fields.Boolean(allow_none=True)
-    hub = fields.Url(allow_none=True)
-    score = fields.Integer(allow_none=True)
-    site_icon_data_uri = fields.String(allow_none=True)
-
-    @post_load
-    def make_feed_info(self, data):
-        return FeedInfo(**data)
 
 
 class FeedInfo:
