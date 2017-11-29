@@ -5,22 +5,22 @@ from typing import Tuple
 import feedparser
 from bs4 import BeautifulSoup
 
-from feedsearch.lib import (bs4_parser,
-                            is_feed)
+from .lib import (bs4_parser,
+                  is_feed)
 
 logger = logging.getLogger(__name__)
 
 
 class FeedInfo:
     def __init__(self,
-                 url: str = None,
-                 site_url: str = None,
-                 title: str = None,
-                 description: str = None,
-                 site_name: str = None,
-                 site_icon_url: str = None,
-                 hub: str = None,
-                 is_push: bool = False) -> None:
+                 url: str=None,
+                 site_url: str=None,
+                 title: str=None,
+                 description: str=None,
+                 site_name: str=None,
+                 site_icon_url: str=None,
+                 hub: str=None,
+                 is_push: bool=False) -> None:
         self.url = url
         self.site_url = site_url
         self.title = title

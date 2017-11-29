@@ -1,23 +1,23 @@
 import logging
+import time
 from typing import Tuple
 from urllib.parse import urljoin
 
-import time
 from bs4 import BeautifulSoup
 
-from feedsearch.feedinfo import FeedInfo
-from feedsearch.lib import (get_url,
-                            create_soup,
-                            coerce_url,
-                            get_site_root,
-                            is_feed,
-                            is_feedlike_url,
-                            is_feed_url,
-                            is_feed_data,
-                            create_requests_session,
-                            default_timeout,
-                            set_bs4_parser)
-from feedsearch.site_meta import SiteMeta
+from .feedinfo import FeedInfo
+from .lib import (get_url,
+                  create_soup,
+                  coerce_url,
+                  get_site_root,
+                  is_feed,
+                  is_feedlike_url,
+                  is_feed_url,
+                  is_feed_data,
+                  create_requests_session,
+                  default_timeout,
+                  set_bs4_parser)
+from .site_meta import SiteMeta
 
 logger = logging.getLogger(__name__)
 

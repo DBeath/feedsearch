@@ -4,9 +4,9 @@ import logging
 from requests import codes
 from werkzeug.urls import url_parse
 
-from feedsearch.lib import (get_url,
-                            coerce_url,
-                            create_soup)
+from .lib import (get_url,
+                  coerce_url,
+                  create_soup)
 
 logger = logging.getLogger(__name__)
 

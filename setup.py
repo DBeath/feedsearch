@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
 import sys
 from codecs import open
@@ -43,6 +46,9 @@ setup(
         'Intended Audience :: Developers',
         'Development Status :: 4 - Beta',
         'Natural Language :: English',
-        'Operating System :: OS Independent'
+        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6'
     ]
 )

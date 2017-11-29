@@ -6,7 +6,8 @@ import requests
 from bs4 import BeautifulSoup
 from werkzeug.local import Local, release_local
 from werkzeug.urls import url_parse, url_fix
-from feedsearch.__version__ import __version__
+
+from .__version__ import __version__
 
 LOCAL_CONTEXT = Local()
 
