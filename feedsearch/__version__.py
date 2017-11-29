@@ -1,0 +1,7 @@
+__title__ = 'Feedsearch'
+__description__ = 'Search a site for RSS feeds'
+__url__ = 'https://github.com/DBeath/feedsearch'
+__version__ = '0.0.1'
+__author__ = 'David Beath'
+__author_email__ = 'davidgbeath@gmail.com'
+__license__ = 'MIT'

@@ -6,6 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 from werkzeug.local import Local, release_local
 from werkzeug.urls import url_parse, url_fix
+from feedsearch.__version__ import __version__
 
 LOCAL_CONTEXT = Local()
 
@@ -40,7 +41,7 @@ def _user_agent():
 
     :return: str
     """
-    return "FeedSearch/0.1 (https://github.com/DBeath/feedsearch)"
+    return 'FeedSearch/{0} (https://github.com/DBeath/feedsearch)'.format(__version__)
 
 
 @contextmanager
