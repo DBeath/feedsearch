@@ -8,6 +8,8 @@ from feedsearch.lib import (get_url,
                             coerce_url,
                             create_soup)
 
+logger = logging.getLogger(__name__)
+
 
 class SiteMeta:
     def __init__(self, url, soup=None):
@@ -46,10 +48,10 @@ class SiteMeta:
                     icon = '{0}/{1}'.format(url, icon)
         if not icon:
             send_url = url + '/favicon.ico'
-            print('Trying url {0} for favicon'.format(send_url))
+            logger.debug('Trying url %s for favicon', send_url)
             r = get_url(send_url)
             if r:
-                print('Received url {0}'.format(r.url))
+                logger.debug('Received url %s for favicon', r.url)
                 if r.status_code == codes.ok:
                     icon = r.url
         return icon
@@ -108,6 +110,6 @@ class SiteMeta:
             encoded = base64.b64encode(r.content)
             uri = "data:image/png;base64," + encoded.decode("utf-8")
         except Exception as e:
-            logging.warning(u'Failure encoding image: {0}'.format(e))
+            logger.warning('Failure encoding image: %s', e)
 
         return uri

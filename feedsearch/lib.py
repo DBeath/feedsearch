@@ -9,7 +9,7 @@ from werkzeug.urls import url_parse, url_fix
 
 LOCAL_CONTEXT = Local()
 
-logger = logging.getLogger('feedsearch')
+logger = logging.getLogger(__name__)
 
 bs4_parser = 'html.parser'
 
@@ -118,8 +118,7 @@ def get_url(url, timeout=None):
     try:
         response = get_session().get(url, timeout=timeout)
     except Exception as e:
-        logger.warning(u'Error while getting URL: {0}, {1}'
-                       .format(url, str(e)))
+        logger.warning('Error while getting URL: %s, %s', url, e)
         return None
     return response
 

@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 from feedsearch.lib import (bs4_parser,
                             is_feed)
 
+logger = logging.getLogger(__name__)
+
 
 class FeedInfo:
     def __init__(self,
@@ -31,7 +33,7 @@ class FeedInfo:
         self.site_icon_data_uri = None
 
     def __repr__(self):
-        return 'FeedInfo: {0}'.format(self.url)
+        return '{0}'.format(self.url)
 
     def __eq__(self, other):
         return self.url == other.url
@@ -75,7 +77,7 @@ class FeedInfo:
                 title = title[:1020] + u'...'
             return title
         except Exception as e:
-            logging.exception(u'Failed to clean title: {0}'.format(e))
+            logger.exception('Failed to clean title: %s', e)
             return ''
 
     @staticmethod
@@ -105,7 +107,7 @@ class FeedInfo:
         feed = parsed.get('feed', None)
         links = feed.get('links', None)
         if links is None:
-            logging.warning(u'No feed links found')
+            logger.warning('No feed links found')
             return '', ''
 
         try:
@@ -117,8 +119,7 @@ class FeedInfo:
                 if link.get('id', None) == 'auto-discovery':
                     autodiscovery_url = link['href']
         except AttributeError as e:
-            logging.warning(u'Attribute Error getting feed links: {0}'
-                           .format(e))
+            logger.warning('Attribute Error getting feed links: %s', e)
             return '', ''
 
         if not hub_url and autodiscovery_url:

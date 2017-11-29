@@ -19,6 +19,8 @@ from feedsearch.lib import (get_url,
                             set_bs4_parser)
 from feedsearch.site_meta import SiteMeta
 
+logger = logging.getLogger(__name__)
+
 
 class FeedFinder:
     def __init__(self,
@@ -41,7 +43,7 @@ class FeedFinder:
         info = FeedInfo(url)
 
         if self.get_feed_info:
-            logging.info(u'Getting FeedInfo for {0}'.format(url))
+            logger.debug('Getting FeedInfo for %s', url)
             info.get_info(text=text, soup=self.soup)
 
             if self.site_meta:
@@ -130,10 +132,10 @@ def find_feeds(url: str,
     start_time = time.perf_counter()
 
     # Download the requested URL
-    logging.info('Finding feeds at URL: {0}'.format(url))
+    logger.info('Finding feeds at URL: %s', url)
     response = get_url(url)
     search_time = int((time.perf_counter() - start_time) * 1000)
-    logging.debug("Searched url in {0}ms".format(search_time))
+    logger.debug('Searched url in %sms', search_time)
 
     if not response or not response.text:
         return []
@@ -154,37 +156,35 @@ def find_feeds(url: str,
         return feeds
 
     # Search for <link> tags
-    logging.debug("Looking for <link> tags.")
+    logger.debug('Looking for <link> tags.')
     found_links = finder.search_links(url)
     feeds.extend(found_links)
-    logging.info("Found {0} feed <link> tags.".format(len(found_links)))
+    logger.info('Found %s feed <link> tags.', len(found_links))
 
     search_time = int((time.perf_counter() - start_time) * 1000)
-    logging.debug("Searched <link> tags in {0}ms".format(search_time))
+    logger.debug('Searched <link> tags in %sms', search_time)
 
     if len(feeds) and not check_all:
         return sort_urls(feeds, url)
 
     # Look for <a> tags.
-    logging.debug("Looking for <a> tags.")
+    logger.debug('Looking for <a> tags.')
     local, remote = finder.search_a_tags(url)
 
     # Check the local URLs.
     local = [urljoin(url, l) for l in local]
     found_local = finder.check_urls(local)
     feeds.extend(found_local)
-    logging.info("Found {0} local <a> links to feeds."
-                .format(len(found_local)))
+    logger.info('Found %s local <a> links to feeds.', len(found_local))
 
     # Check the remote URLs.
     remote = [urljoin(url, l) for l in remote]
     found_remote = finder.check_urls(remote)
     feeds.extend(found_remote)
-    logging.info("Found {0} remote <a> links to feeds."
-                .format(len(found_remote)))
+    logger.info('Found %s remote <a> links to feeds.', len(found_remote))
 
     search_time = int((time.perf_counter() - start_time) * 1000)
-    logging.debug("Searched <a> links in {0}ms".format(search_time))
+    logger.debug('Searched <a> links in %sms', search_time)
 
     if len(feeds) and not check_all:
         return sort_urls(feeds, url)
@@ -195,11 +195,10 @@ def find_feeds(url: str,
     urls = list(urljoin(url, f) for f in fns)
     found_guessed = finder.check_urls(urls)
     feeds.extend(found_guessed)
-    logging.info("Found {0} guessed links to feeds."
-                .format(len(found_guessed)))
+    logger.info('Found %s guessed links to feeds.', len(found_guessed))
 
     search_time = int((time.perf_counter() - start_time) * 1000)
-    logging.debug("Searched guessed urls in {0}ms".format(search_time))
+    logger.debug('Searched guessed urls in %sms', search_time)
 
     return sort_urls(feeds, url)
 
@@ -251,5 +250,5 @@ def sort_urls(feeds, original_url=None):
         list(set(feeds)),
         key=lambda x: x.score,
         reverse=True)
-    logging.info(u'Returning sorted URLs: {0}'.format(sorted_urls))
+    logger.info('Returning sorted URLs: %s', sorted_urls)
     return sorted_urls
