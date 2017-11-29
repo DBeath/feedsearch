@@ -1,4 +1,4 @@
-__title__ = 'Feedsearch'
+__title__ = 'feedsearch'
 __description__ = 'Search a site for RSS feeds'
 __url__ = 'https://github.com/DBeath/feedsearch'
 __version__ = '0.0.1'

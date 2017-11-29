@@ -17,7 +17,8 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     readme = f.read()
 
 if sys.argv[-1] == "publish":
-    os.system("python setup.py sdist bdist_wheel upload")
+    os.system('python3 setup.py sdist bdist_wheel upload')
+    os.system('twine upload dist/*')
     sys.exit()
 
 packages = ['feedsearch']
@@ -50,5 +51,6 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
-    ]
+    ],
+    python_requires='>=3'
 )
