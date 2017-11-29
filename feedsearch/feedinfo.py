@@ -33,7 +33,7 @@ class FeedInfo:
         self.site_icon_data_uri = None
 
     def __repr__(self):
-        return '{0}'.format(self.url)
+        return 'FeedInfo: <{0}>'.format(self.url)
 
     def __eq__(self, other):
         return self.url == other.url

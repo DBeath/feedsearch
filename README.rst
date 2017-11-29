@@ -1,7 +1,7 @@
 Feedsearch
 ==========
 
-Feedsearch is a Python library for searching sites for RSS and JSON feeds.
+Feedsearch is a Python library for searching websites for RSS feeds.
 
 It was originally based on
 `Feedfinder2 <https://github.com/dfm/feedfinder2>`_ written by
@@ -23,7 +23,7 @@ Feedsearch is called with the single function ``search``:
     >>> from feedsearch import search
     >>> feeds = search('xkcd.com')
     >>> feeds
-    [FeedInfo: http://xkcd.com/atom.xml, FeedInfo: http://xkcd.com/rss.xml]
+    [FeedInfo: <http://xkcd.com/atom.xml>, FeedInfo: <http://xkcd.com/rss.xml>]
     >>> feeds[0].url
     'http://xkcd.com/atom.xml'
 
@@ -47,7 +47,9 @@ To get Feed and Site metadata:
     'title': 'Articles and Investigations - ProPublica',
     'url': 'http://feeds.propublica.org/propublica/main'}
 
-Search will always return a list of FeedInfo objects, each of which will always have a url property.
+Search will always return a list of FeedInfo objects, each of which will always have a *url* property.
+Feeds are sorted by the *score* value from highest to lowest, with a higher score theoretically indicating
+a more relevant feed, but whatever you do don't take this seriously.
 
 If you only want the raw urls, then simply use a list comprehension on the result:
 
@@ -59,3 +61,12 @@ If you only want the raw urls, then simply use a list comprehension on the resul
     >>> urls
     ['http://xkcd.com/atom.xml', 'http://xkcd.com/rss.xml']
 
+In addition to the URL, the ``search`` function takes the following optional keyword arguments:
+
+- **info**: *bool*: Get Feed and Site Metadata. Defaults False.
+- **check_all**: *bool*: Check all <link> and <a> tags on page. Defaults False.
+- **user_agent**: *str*: User-Agent Header string. Defaults to Package name.
+- **timeout**: *int* or *tuple*: Timeout for each request in the search (not a timeout for the ``search``
+  method itself). Defaults to 30 seconds.
+- **max_redirects**: *int*: Maximum number of redirects for each request. Defaults to 30.
+- **parser**: *str*: BeautifulSoup parser for HTML parsing. Defaults to 'html.parser'.
