@@ -13,7 +13,11 @@ from feedsearch import search as search_feeds
 @click.option('--parser', default='html.parser', type=click.Choice(['html.parser', 'lxml', 'xml', 'html5lib']),
               help="BeautifulSoup parser ('html.parser', 'lxml', 'xml', or 'html5lib'). Defaults to 'html.parser'")
 @click.option('-v', '--verbose', is_flag=True, help='Show logging')
-def search(url, checkall, info, parser, verbose):
+@click.option('--exceptions/--no-exceptions', default=False,
+              help='If False, will gracefully handle Requests exceptions and attempt to keep searching.'
+                   'If True, will leave Requests exceptions uncaught to be handled externally.')
+@click.option('--timeout', default=30, type=click.FLOAT, help='Request timeout')
+def search(url, checkall, info, parser, verbose, exceptions, timeout):
     if verbose:
         logger = logging.getLogger('feedsearch')
         logger.setLevel(logging.DEBUG)
@@ -24,10 +28,13 @@ def search(url, checkall, info, parser, verbose):
         logger.addHandler(ch)
 
     click.echo('\nSearching URL {0}\n'.format(url))
-    feeds = search_feeds(url=url, check_all=checkall, info=info, parser=parser)
-    for feed in feeds:
-        print()
-        pprint(vars(feed))
+    try:
+        feeds = search_feeds(url=url, check_all=checkall, info=info, parser=parser, exceptions=exceptions, timeout=timeout)
+        for feed in feeds:
+            print()
+            pprint(vars(feed))
+    except Exception as e:
+        click.echo('Exception: {0}\n'.format(e))
 
 
 if __name__ == '__main__':

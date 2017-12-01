@@ -16,7 +16,9 @@ from .lib import (get_url,
                   is_feed_data,
                   create_requests_session,
                   default_timeout,
-                  set_bs4_parser)
+                  set_bs4_parser,
+                  get_timeout,
+                  get_exceptions)
 from .site_meta import SiteMeta
 
 logger = logging.getLogger(__name__)
@@ -95,7 +97,8 @@ def search(url,
            timeout=default_timeout,
            user_agent=None,
            max_redirects=30,
-           parser='html.parser'):
+           parser='html.parser',
+           exceptions=False):
     """
     Search for RSS or ATOM feeds at a given URL
 
@@ -106,12 +109,14 @@ def search(url,
     :param user_agent: User-Agent Header string
     :param max_redirects: Maximum Request redirects
     :param parser: BeautifulSoup parser ('html.parser', 'lxml', etc.). Defaults to 'html.parser'
+    :param exceptions: If False, will gracefully handle Requests exceptions and attempt to keep searching.
+                       If True, will leave Requests exceptions uncaught to be handled externally.
     :return: List of found feeds as FeedInfo objects.
              FeedInfo objects will always have a .url value.
     """
 
     # Wrap find_feeds in a Requests session
-    with create_requests_session(user_agent, max_redirects, timeout):
+    with create_requests_session(user_agent, max_redirects, timeout, exceptions):
         # Set BeautifulSoup parser
         set_bs4_parser(parser)
         # Find feeds
@@ -133,7 +138,7 @@ def find_feeds(url: str,
 
     # Download the requested URL
     logger.info('Finding feeds at URL: %s', url)
-    response = get_url(url)
+    response = get_url(url, get_timeout(), get_exceptions())
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug('Searched url in %sms', search_time)
 
@@ -150,7 +155,6 @@ def find_feeds(url: str,
 
     # Check if it is already a feed.
     if is_feed_data(text):
-
         found = finder.create_feed_info(url, text)
         feeds.append(found)
         return feeds

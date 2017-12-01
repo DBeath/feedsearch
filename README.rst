@@ -70,3 +70,6 @@ In addition to the URL, the ``search`` function takes the following optional key
   method itself). Defaults to 30 seconds.
 - **max_redirects**: *int*: Maximum number of redirects for each request. Defaults to 30.
 - **parser**: *str*: BeautifulSoup parser for HTML parsing. Defaults to 'html.parser'.
+- **exceptions**: *bool*: If False, will gracefully handle Requests exceptions and attempt to keep searching.
+                          If True, will leave Requests exceptions uncaught to be handled by the caller.
+                          Defaults False.

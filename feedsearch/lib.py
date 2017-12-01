@@ -3,6 +3,7 @@ import logging
 from contextlib import contextmanager
 
 import requests
+from requests.exceptions import RequestException
 from bs4 import BeautifulSoup
 from werkzeug.local import Local, release_local
 from werkzeug.urls import url_parse, url_fix
@@ -27,6 +28,7 @@ def get_session():
     """
     return getattr(LOCAL_CONTEXT, 'session', create_requests_session())
 
+
 def get_timeout():
     """
     Returns the Request timeout for the current local context.
@@ -34,6 +36,15 @@ def get_timeout():
     :return: Request timeout
     """
     return getattr(LOCAL_CONTEXT, 'timeout', default_timeout)
+
+
+def get_exceptions():
+    """
+    Returns the exception handling settings for the current local context.
+
+    :return: Catch exception boolean
+    """
+    return getattr(LOCAL_CONTEXT, 'exceptions', False)
 
 
 def _user_agent():
@@ -46,12 +57,14 @@ def _user_agent():
 
 
 @contextmanager
-def create_requests_session(user_agent=None, max_redirects=30, timeout=default_timeout):
+def create_requests_session(user_agent=None, max_redirects=30, timeout=default_timeout, exceptions=False):
     """
     Creates a Requests Session and sets User-Agent header and Max Redirects
 
     :param user_agent: User-Agent string
     :param max_redirects: Max number of redirects before failure
+    :param exceptions: If False, will gracefully handle Requests exceptions and attempt to keep searching.
+                       If True, will leave Requests exceptions uncaught to be handled externally.
     :return: Requests session
     """
     # Create a request session
@@ -66,6 +79,7 @@ def create_requests_session(user_agent=None, max_redirects=30, timeout=default_t
     # Add request session to local context
     setattr(LOCAL_CONTEXT, 'session', session)
     setattr(LOCAL_CONTEXT, 'timeout', timeout)
+    setattr(LOCAL_CONTEXT, 'exceptions', exceptions)
 
     yield session
 
@@ -108,21 +122,29 @@ def set_bs4_parser(parser: str) -> None:
         bs4_parser = parser
 
 
-def get_url(url, timeout=None):
+def get_url(url, timeout=None, exceptions=False):
     """
     Performs a GET request on a URL
 
     :param url: URL string
     :param timeout: Optional Request Timeout
+    :param exceptions: If False, will gracefully handle Requests exceptions and attempt to keep searching.
+                       If True, will leave Requests exceptions uncaught to be handled externally.
     :return: Requests Response object
     """
     timeout = timeout if timeout else get_timeout()
-    try:
+    if exceptions:
         response = get_session().get(url, timeout=timeout)
-    except Exception as e:
-        logger.warning('Error while getting URL: %s, %s', url, e)
-        return None
-    return response
+        response.raise_for_status()
+        return response
+    else:
+        try:
+            response = get_session().get(url, timeout=timeout)
+            response.raise_for_status()
+        except RequestException as e:
+            logger.warning('RequestException while getting URL: %s, %s', url, e)
+            return None
+        return response
 
 
 def create_soup(text: str) -> BeautifulSoup:
@@ -170,7 +192,7 @@ def is_feed_data(text: str) -> bool:
 
 
 def is_feed(url: str) -> str:
-    response = get_url(url)
+    response = get_url(url, get_timeout(), get_exceptions())
 
     if not response or not response.text or not is_feed_data(response.text):
         return ''

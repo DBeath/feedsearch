@@ -6,7 +6,9 @@ from werkzeug.urls import url_parse
 
 from .lib import (get_url,
                   coerce_url,
-                  create_soup)
+                  create_soup,
+                  get_timeout,
+                  get_exceptions)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ class SiteMeta:
     def parse_site_info(self):
         self.domain = self.domain(self.url)
 
-        response = get_url(self.domain)
+        response = get_url(self.domain, get_timeout(), get_exceptions())
         if not response or not response.text:
             return
 
@@ -49,7 +51,7 @@ class SiteMeta:
         if not icon:
             send_url = url + '/favicon.ico'
             logger.debug('Trying url %s for favicon', send_url)
-            r = get_url(send_url)
+            r = get_url(url, get_timeout(), get_exceptions())
             if r:
                 logger.debug('Received url %s for favicon', r.url)
                 if r.status_code == codes.ok:
@@ -101,7 +103,7 @@ class SiteMeta:
 
     @staticmethod
     def create_data_uri(img_url):
-        r = get_url(img_url)
+        r = get_url(url, get_timeout(), get_exceptions())
         if not r or not r.content:
             return None
 
