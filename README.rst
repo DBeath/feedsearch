@@ -1,5 +1,13 @@
 Feedsearch
 ==========
+.. image:: https://img.shields.io/pypi/v/feedsearch.svg
+    :target: https://pypi.python.org/pypi/feedsearch
+
+.. image:: https://img.shields.io/pypi/l/feedsearch.svg
+    :target: https://pypi.python.org/pypi/feedsearch
+    
+.. image:: https://img.shields.io/pypi/pyversions/feedsearch.svg
+    :target: https://pypi.python.org/pypi/feedsearch
 
 Feedsearch is a Python library for searching websites for RSS feeds.
 
