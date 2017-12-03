@@ -22,7 +22,12 @@ class SiteMeta:
         self.icon_url = None
         self.icon_data_uri = None
 
-    def parse_site_info(self):
+    def parse_site_info(self, favicon_data_uri: bool=False):
+        """
+        Finds Site Info from root domain of site
+
+        :return: None
+        """
         self.domain = self.domain(self.url)
 
         response = get_url(self.domain, get_timeout(), get_exceptions())
@@ -36,7 +41,16 @@ class SiteMeta:
         self.site_name = self.find_site_name(self.soup)
         self.icon_url = self.find_site_icon_url(self.domain)
 
-    def find_site_icon_url(self, url) -> str:
+        if favicon_data_uri and self.icon_url:
+            self.icon_data_uri = self.create_data_uri(self.icon_url)
+
+    def find_site_icon_url(self, url: str) -> str:
+        """
+        Attempts to find Site Favicon
+
+        :param url: Root domain Url of Site
+        :return: str
+        """
         icon_rel = ['apple-touch-icon', 'shortcut icon', 'icon']
 
         icon = ''
@@ -60,6 +74,12 @@ class SiteMeta:
 
     @staticmethod
     def find_site_name(soup) -> str:
+        """
+        Attempts to find Site Name
+
+        :param soup: BeautifulSoup of site
+        :return: str
+        """
         site_name_meta = [
             'og:site_name',
             'og:title',
@@ -78,6 +98,13 @@ class SiteMeta:
 
     @staticmethod
     def find_site_url(soup, url: str) -> str:
+        """
+        Attempts to find the canonical Url of the Site
+
+        :param soup: BeautifulSoup of site
+        :param url: Current Url of site
+        :return: str
+        """
         canonical = soup.find(name='link', rel='canonical')
         try:
             site = canonical.get('href')
@@ -96,22 +123,34 @@ class SiteMeta:
 
     @staticmethod
     def domain(url: str) -> str:
+        """
+        Finds root domain of Url, including scheme
+
+        :param url: URL string
+        :return: str
+        """
         url = coerce_url(url)
         parsed = url_parse(url)
         domain = '{url.scheme}://{url.netloc}'.format(url=parsed)
         return domain
 
     @staticmethod
-    def create_data_uri(img_url):
-        r = get_url(url, get_timeout(), get_exceptions())
-        if not r or not r.content:
-            return None
+    def create_data_uri(img_url: str) -> str:
+        """
+        Creates a Data Uri for a Favicon
 
-        uri = None
-        try:
-            encoded = base64.b64encode(r.content)
-            uri = "data:image/png;base64," + encoded.decode("utf-8")
-        except Exception as e:
-            logger.warning('Failure encoding image: %s', e)
+        :param img_url: Url of Favicon
+        :return: str
+        """
+        with get_url(img_url, get_timeout(), get_exceptions(), stream=True) as r:
+            if not r or int(r.headers['content-length']) > 500000:
+                return ''
 
-        return uri
+            uri = ''
+            try:
+                encoded = base64.b64encode(r.content)
+                uri = "data:image/png;base64," + encoded.decode("utf-8")
+            except Exception as e:
+                logger.warning('Failure encoding image: %s', e)
+
+            return uri

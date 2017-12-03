@@ -1,4 +1,5 @@
 import logging
+import traceback
 from pprint import pprint
 
 import click
@@ -17,7 +18,8 @@ from feedsearch import search as search_feeds
               help='If False, will gracefully handle Requests exceptions and attempt to keep searching.'
                    'If True, will leave Requests exceptions uncaught to be handled externally.')
 @click.option('--timeout', default=30, type=click.FLOAT, help='Request timeout')
-def search(url, checkall, info, parser, verbose, exceptions, timeout):
+@click.option('--favicon/--no-favicon', default=False, help='Convert Favicon into Data Uri')
+def search(url, checkall, info, parser, verbose, exceptions, timeout, favicon):
     if verbose:
         logger = logging.getLogger('feedsearch')
         logger.setLevel(logging.DEBUG)
@@ -29,12 +31,19 @@ def search(url, checkall, info, parser, verbose, exceptions, timeout):
 
     click.echo('\nSearching URL {0}\n'.format(url))
     try:
-        feeds = search_feeds(url=url, check_all=checkall, info=info, parser=parser, exceptions=exceptions, timeout=timeout)
+        feeds = search_feeds(url=url,
+                             check_all=checkall,
+                             info=info,
+                             parser=parser,
+                             exceptions=exceptions,
+                             timeout=timeout,
+                             favicon_data_uri=favicon)
         for feed in feeds:
             print()
             pprint(vars(feed))
     except Exception as e:
         click.echo('Exception: {0}\n'.format(e))
+        click.echo(traceback.format_exc())
 
 
 if __name__ == '__main__':

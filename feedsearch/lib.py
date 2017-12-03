@@ -3,8 +3,8 @@ import logging
 from contextlib import contextmanager
 
 import requests
-from requests.exceptions import RequestException
 from bs4 import BeautifulSoup
+from requests.exceptions import RequestException
 from werkzeug.local import Local, release_local
 from werkzeug.urls import url_parse, url_fix
 
@@ -122,7 +122,7 @@ def set_bs4_parser(parser: str) -> None:
         bs4_parser = parser
 
 
-def get_url(url, timeout=None, exceptions=False):
+def get_url(url, timeout=None, exceptions=False, **kwargs):
     """
     Performs a GET request on a URL
 
@@ -134,12 +134,12 @@ def get_url(url, timeout=None, exceptions=False):
     """
     timeout = timeout if timeout else get_timeout()
     if exceptions:
-        response = get_session().get(url, timeout=timeout)
+        response = get_session().get(url, timeout=timeout, **kwargs)
         response.raise_for_status()
         return response
     else:
         try:
-            response = get_session().get(url, timeout=timeout)
+            response = get_session().get(url, timeout=timeout, **kwargs)
             response.raise_for_status()
         except RequestException as e:
             logger.warning('RequestException while getting URL: %s, %s', url, e)
@@ -165,7 +165,7 @@ def coerce_url(url: str) -> str:
     :return: str
     """
     url.strip()
-    if url.startswith("feed://"):
+    if url.startswith("is_feed://"):
         return url_fix("http://{0}".format(url[7:]))
     for proto in ["http://", "https://"]:
         if url.startswith(proto):
@@ -180,36 +180,3 @@ def get_site_root(url: str) -> str:
     url = coerce_url(url)
     parsed = url_parse(url, scheme='http')
     return parsed.netloc
-
-
-def is_feed_data(text: str) -> bool:
-    data = text.lower()
-    if data.count('<html'):
-        return False
-    return bool(data.count('<rss') +
-                data.count('<rdf') +
-                data.count('<feed'))
-
-
-def is_feed(url: str) -> str:
-    response = get_url(url, get_timeout(), get_exceptions())
-
-    if not response or not response.text or not is_feed_data(response.text):
-        return ''
-
-    return response.text
-
-
-def is_feed_url(url: str) -> bool:
-    return any(map(url.lower().endswith, [".rss",
-                                          ".rdf",
-                                          ".xml",
-                                          ".atom"]))
-
-
-def is_feedlike_url(url: str) -> bool:
-    return any(map(url.lower().count, ["rss",
-                                       "rdf",
-                                       "xml",
-                                       "atom",
-                                       "feed"]))
