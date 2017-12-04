@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Tuple
+from typing import Tuple, Any
 
 import feedparser
 from bs4 import BeautifulSoup
@@ -14,15 +14,19 @@ logger = logging.getLogger(__name__)
 class FeedInfo:
     def __init__(self,
                  url: str,
-                 site_url: str=None,
-                 title: str=None,
-                 description: str=None,
-                 site_name: str=None,
-                 favicon_url: str=None,
-                 hub: str=None,
+                 site_url: str='',
+                 title: str='',
+                 description: str='',
+                 site_name: str='',
+                 favicon_url: str='',
+                 hub: str='',
                  is_push: bool=False,
-                 content_type: str=None,
-                 version: str=None) -> None:
+                 content_type: str='',
+                 version: str='',
+                 self_url: str='',
+                 score: int=0,
+                 bozo: int=0,
+                 favicon_data_uri: str='') -> None:
         self.url = url
         self.site_url = site_url
         self.title = title
@@ -33,9 +37,10 @@ class FeedInfo:
         self.is_push = is_push
         self.content_type = content_type
         self.version = version
-        self.bozo = 0
-        self.score = None
-        self.favicon_data_uri = None
+        self.self_url = self_url
+        self.bozo = bozo
+        self.score = score
+        self.favicon_data_uri = favicon_data_uri
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.url!r})'
@@ -46,23 +51,28 @@ class FeedInfo:
     def __hash__(self):
         return hash(self.url)
 
-    def get_info(self, data: any=None) -> None:
+    def get_info(self, data: Any=None) -> None:
         """
         Get Feed info from data.
 
         :param data: Feed data, XML string or JSON object
         :return: None
         """
+        logger.debug('Getting FeedInfo for %s', self.url)
+
         if not data:
             url = URL(self.url)
             if url.is_feed:
                 return self.update_from_url(url.url, url.content_type, url.data)
 
         # Parse data as JSON object if content type is set as JSON
-        if 'application/json' in self.content_type and isinstance(data, (dict, object)):
-            return self.parse_json(data)
+        if 'application/json' in self.content_type:
+            try:
+                return self.parse_json(dict(data))
+            except AttributeError:
+                pass
 
-        # Try to parse data as JSON just in case
+        # Try to parse data as JSON just in case data is JSON string somehow
         try:
             json_data = json.loads(data)
             logger.debug('%s data was un-parsed JSON', self)
@@ -72,6 +82,7 @@ class FeedInfo:
             pass
 
         # Parse data with feedparser
+        # Don't wrap this in try/except, feedparser eats errors and returns bozo instead
         parsed = self.parse_feed(data)
         if not parsed or parsed.get('bozo') == 1:
             self.bozo = 1
@@ -80,14 +91,9 @@ class FeedInfo:
 
         feed = parsed.get('feed')
 
-        self.hub, self_url = self.pubsubhubbub_links(feed)
-        # Check URL from feed data if mismatch
-        if self_url and self_url != self.url:
-            url = URL(self_url)
-            if url.is_feed:
-                return self.update_from_url(url.url, url.content_type, url.data)
+        self.hub, self.self_url = self.pubsubhubbub_links(feed)
 
-        if self.hub and self_url:
+        if self.hub and self.self_url:
             self.is_push = True
 
         self.version = parsed.get('version')
@@ -211,10 +217,10 @@ class FeedInfo:
         return hub_url, self_url
 
     def add_site_info(self,
-                      url: str=None,
-                      name: str=None,
-                      icon: str=None,
-                      icon_data_uri: str=None):
+                      url: str='',
+                      name: str='',
+                      icon: str='',
+                      icon_data_uri: str=''):
         """
         Adds site meta info to FeedInfo
 
@@ -229,7 +235,7 @@ class FeedInfo:
         self.favicon = icon
         self.favicon_data_uri = icon_data_uri
 
-    def update_from_url(self, url: str, content_type: str=None, data: any=None):
+    def update_from_url(self, url: str, content_type: str='', data: Any=None):
         """
         Update a FeedInfo object from a Url
 
@@ -243,14 +249,14 @@ class FeedInfo:
         self.get_info(data)
 
     @classmethod
-    def create_from_url(cls, url: str, content_type: str=None):
+    def create_from_url(cls, url: str, content_type: str=''):
         """
         Create a FeedInfo object from a Url
         :param url: Url string
         :param content_type: Content-Type of returned Url
         :return: FeedInfo
         """
-        return cls(url=url, type=content_type)
+        return cls(url=url, content_type=content_type)
 
     def serialize(self):
         """
