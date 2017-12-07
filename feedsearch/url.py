@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from .lib import (get_url,
                   get_timeout,
@@ -8,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class URL:
-    def __init__(self, url: str, data: any=None):
+    def __init__(self, url: str, data: Any=None) -> None:
         """
         Initialise URL object and immediately fetch URL to check if feed.
 
@@ -17,7 +18,7 @@ class URL:
         self.url = url
         self.data = data
         self.is_feed = False
-        self.content_type = None
+        self.content_type = ''
 
         self.get_is_feed(self.url)
 

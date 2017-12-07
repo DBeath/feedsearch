@@ -2,9 +2,11 @@ import functools
 import logging
 import time
 from contextlib import contextmanager
+from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
+from requests import Response
 from requests.exceptions import RequestException
 from werkzeug.local import Local, release_local
 from werkzeug.urls import url_parse, url_fix
@@ -39,7 +41,7 @@ def get_timeout():
     return getattr(LOCAL_CONTEXT, 'timeout', default_timeout)
 
 
-def get_exceptions():
+def get_exceptions() -> bool:
     """
     Returns the exception handling settings for the current local context.
 
@@ -48,17 +50,20 @@ def get_exceptions():
     return getattr(LOCAL_CONTEXT, 'exceptions', False)
 
 
-def _user_agent():
+def _user_agent() -> str:
     """
     Return User-Agent string
 
     :return: str
     """
-    return 'FeedSearch/{0} (https://github.com/DBeath/feedsearch)'.format(__version__)
+    return f'FeedSearch/{__version__} (https://github.com/DBeath/feedsearch)'
 
 
 @contextmanager
-def create_requests_session(user_agent=None, max_redirects=30, timeout=default_timeout, exceptions=False):
+def create_requests_session(user_agent: str='',
+                            max_redirects: int=30,
+                            timeout=default_timeout,
+                            exceptions: bool=False):
     """
     Creates a Requests Session and sets User-Agent header and Max Redirects
 
@@ -91,7 +96,10 @@ def create_requests_session(user_agent=None, max_redirects=30, timeout=default_t
     release_local(LOCAL_CONTEXT)
 
 
-def requests_session(user_agent=None, max_redirects=30):
+def requests_session(user_agent: str='',
+                     max_redirects: int=30,
+                     timeout=default_timeout,
+                     exceptions: bool = False):
     """
     Wraps a requests session around a function.
 
@@ -102,7 +110,7 @@ def requests_session(user_agent=None, max_redirects=30):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            with create_requests_session(user_agent, max_redirects):
+            with create_requests_session(user_agent, max_redirects, timeout, exceptions):
                 # Call wrapped function
                 return func(*args, **kwargs)
 
@@ -123,7 +131,7 @@ def set_bs4_parser(parser: str) -> None:
         bs4_parser = parser
 
 
-def get_url(url, timeout=None, exceptions=False, **kwargs):
+def get_url(url: str, timeout=None, exceptions: bool=False, **kwargs) -> Optional[Response]:
     """
     Performs a GET request on a URL
 

@@ -1,6 +1,7 @@
 import base64
 import logging
 
+from bs4 import BeautifulSoup
 from requests import codes
 from werkzeug.urls import url_parse
 
@@ -14,13 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class SiteMeta:
-    def __init__(self, url, soup=None):
+    def __init__(self, url: str, soup: BeautifulSoup=None) -> None:
         self.url = url
         self.soup = soup
-        self.site_url = None
-        self.site_name = None
-        self.icon_url = None
-        self.icon_data_uri = None
+        self.site_url: str=''
+        self.site_name: str=''
+        self.icon_url: str=''
+        self.icon_data_uri: str=''
+        self.domain: str=''
 
     def parse_site_info(self, favicon_data_uri: bool=False):
         """
@@ -28,7 +30,7 @@ class SiteMeta:
 
         :return: None
         """
-        self.domain = self.domain(self.url)
+        self.domain = self.get_domain(self.url)
 
         response = get_url(self.domain, get_timeout(), get_exceptions())
         if not response or not response.text:
@@ -54,10 +56,10 @@ class SiteMeta:
         icon_rel = ['apple-touch-icon', 'shortcut icon', 'icon']
 
         icon = ''
-        for r in icon_rel:
-            rel = self.soup.find(name='link', rel=r)
-            if rel:
-                icon = rel.get('href', None)
+        for rel in icon_rel:
+            link = self.soup.find(name='link', rel=rel)
+            if link:
+                icon = link.get('href', None)
                 if icon[0] == '/':
                     icon = '{0}{1}'.format(url, icon)
                 if icon == 'favicon.ico':
@@ -65,11 +67,11 @@ class SiteMeta:
         if not icon:
             send_url = url + '/favicon.ico'
             logger.debug('Trying url %s for favicon', send_url)
-            r = get_url(url, get_timeout(), get_exceptions())
-            if r:
-                logger.debug('Received url %s for favicon', r.url)
-                if r.status_code == codes.ok:
-                    icon = r.url
+            response = get_url(url, get_timeout(), get_exceptions())
+            if response:
+                logger.debug('Received url %s for favicon', response.url)
+                if response.status_code == codes.ok:
+                    icon = response.url
         return icon
 
     @staticmethod
@@ -116,13 +118,12 @@ class SiteMeta:
         meta = soup.find(name='meta', property='og:url')
         try:
             site = meta.get('content')
-            if site:
-                return site
         except AttributeError:
             return url
+        return site
 
     @staticmethod
-    def domain(url: str) -> str:
+    def get_domain(url: str) -> str:
         """
         Finds root domain of Url, including scheme
 
@@ -131,7 +132,7 @@ class SiteMeta:
         """
         url = coerce_url(url)
         parsed = url_parse(url)
-        domain = '{url.scheme}://{url.netloc}'.format(url=parsed)
+        domain = f'{parsed.scheme}://{parsed.netloc}'
         return domain
 
     @staticmethod
@@ -142,15 +143,17 @@ class SiteMeta:
         :param img_url: Url of Favicon
         :return: str
         """
-        with get_url(img_url, get_timeout(), get_exceptions(), stream=True) as r:
-            if not r or int(r.headers['content-length']) > 500000:
-                return ''
+        response = get_url(img_url, get_timeout(), get_exceptions(), stream=True)
+        if not response or int(response.headers['content-length']) > 500000:
+            response.close()
+            return ''
 
-            uri = ''
-            try:
-                encoded = base64.b64encode(r.content)
-                uri = "data:image/png;base64," + encoded.decode("utf-8")
-            except Exception as e:
-                logger.warning('Failure encoding image: %s', e)
+        uri = ''
+        try:
+            encoded = base64.b64encode(response.content)
+            uri = "data:image/png;base64," + encoded.decode("utf-8")
+        except Exception as e:
+            logger.warning('Failure encoding image: %s', e)
 
-            return uri
+        response.close()
+        return uri

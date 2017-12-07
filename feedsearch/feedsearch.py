@@ -1,7 +1,9 @@
 import logging
 import time
-from typing import Tuple
+from typing import Tuple, List
 from urllib.parse import urljoin
+
+from bs4 import BeautifulSoup
 
 from .feedinfo import FeedInfo
 from .lib import (create_soup,
@@ -20,14 +22,14 @@ logger = logging.getLogger(__name__)
 class FeedFinder:
     def __init__(self,
                  feed_info: bool=False,
-                 favicon_data_uri: bool=False):
+                 favicon_data_uri: bool=False) -> None:
         self.feed_info = feed_info
         self.favicon_data_uri = favicon_data_uri
-        self.soup = None
-        self.site_meta = None
-        self.feeds = []
+        self.soup: BeautifulSoup=None
+        self.site_meta: SiteMeta=None
+        self.feeds: list=[]
 
-    def check_urls(self, urls: list) -> list:
+    def check_urls(self, urls: List[str]) -> List[FeedInfo]:
         """
         Check if a list of Urls contain feeds
 
@@ -53,7 +55,6 @@ class FeedFinder:
         info = FeedInfo(url.url, content_type=url.content_type)
 
         if self.feed_info:
-            logger.debug('Getting FeedInfo for %s', url)
             info.get_info(data=url.data)
 
             if self.site_meta:
@@ -64,14 +65,14 @@ class FeedFinder:
 
         return info
 
-    def search_links(self, url: str) -> list:
+    def search_links(self, url: str) -> List[FeedInfo]:
         """
         Search all links on a page for feeds
 
         :param url: Url of the soup
         :return: list
         """
-        links = []
+        links: List[str]=[]
         for link in self.soup.find_all("link"):
             if link.get("type") in ["application/rss+xml",
                                     "text/xml",
@@ -83,7 +84,7 @@ class FeedFinder:
 
         return self.check_urls(links)
 
-    def search_a_tags(self) -> Tuple[list, list]:
+    def search_a_tags(self) -> Tuple[List[str], List[str]]:
         """
         Search all 'a' tags on a page for feeds
 
@@ -101,7 +102,7 @@ class FeedFinder:
 
         return local, remote
 
-    def get_site_info(self, url):
+    def get_site_info(self, url: str) -> None:
         """
         Search for site metadata
 
@@ -117,7 +118,7 @@ def search(url,
            check_all: bool=False,
            info: bool=False,
            timeout=default_timeout,
-           user_agent: str=None,
+           user_agent: str='',
            max_redirects: int=30,
            parser: str='html.parser',
            exceptions: bool=False,
@@ -151,7 +152,7 @@ def search(url,
 def _find_feeds(url: str,
                check_all: bool=False,
                feed_info: bool=False,
-               favicon_data_uri: bool=False) -> list:
+               favicon_data_uri: bool=False) -> List[FeedInfo]:
     """
     Finds feeds
 
@@ -245,7 +246,7 @@ def _find_feeds(url: str,
     return sort_urls(feeds, url)
 
 
-def url_feed_score(url: str, original_url: str=None) -> int:
+def url_feed_score(url: str, original_url: str='') -> int:
     """
     Return a Score based on estimated relevance of the feed Url
     to the original search Url
@@ -278,7 +279,7 @@ def url_feed_score(url: str, original_url: str=None) -> int:
     return score
 
 
-def sort_urls(feeds, original_url=None):
+def sort_urls(feeds: List[FeedInfo], original_url: str='') -> List[FeedInfo]:
     """
     Sort list of feeds based on Url score
 

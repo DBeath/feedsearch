@@ -50,10 +50,11 @@ To get Feed and Site metadata:
                     'independent, non-profit newsroom that produces investigative '
                     'journalism in the public interest.',
      'favicon': 'https://assets.propublica.org/prod/v3/images/favicon.ico',
-     'favicon_data_uri': None,
+     'favicon_data_uri': '',
      'hub': 'http://feedpress.superfeedr.com/',
      'is_push': True,
      'score': 4,
+     'self_url': 'http://feeds.propublica.org/propublica/main',
      'site_name': 'ProPublica',
      'site_url': 'https://www.propublica.org/',
      'title': 'Articles and Investigations - ProPublica',
@@ -68,11 +69,12 @@ If you only want the raw urls, then simply use a list comprehension on the resul
 
 .. code-block:: python
 
+    >>> feeds = search('http://jsonfeed.org')
     >>> feeds
-    [FeedInfo: http://xkcd.com/atom.xml, FeedInfo: http://xkcd.com/rss.xml]
+    [FeedInfo('https://jsonfeed.org/xml/rss.xml'), FeedInfo('https://jsonfeed.org/feed.json')]
     >>> urls = [f.url for f in feeds]
     >>> urls
-    ['http://xkcd.com/atom.xml', 'http://xkcd.com/rss.xml']
+    ['https://jsonfeed.org/xml/rss.xml', 'https://jsonfeed.org/feed.json']
 
 In addition to the URL, the ``search`` function takes the following optional keyword arguments:
 
@@ -100,6 +102,7 @@ FeedInfo objects may have the following values if *info* is *True*:
 - **hub**: *str*: `Websub <https://en.wikipedia.org/wiki/WebSub>`_ hub of feed if available.
 - **is_push**: *bool*: True if feed contains valid Websub data.
 - **score**: *int*: Computed relevance of feed url. May be safely ignored.
+- **self_url**: *str*: *ref="self"* value returned from feed links. In some cases is different from feed url.
 - **site_name**: *str*: Name of feed's website.
 - **site_url**: *str*: URL of feed's website.
 - **title**: *str*: Feed Title.
