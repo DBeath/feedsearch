@@ -17,7 +17,7 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     readme = f.read()
 
 if sys.argv[-1] == "publish":
-    os.system('python3 setup.py sdist bdist_wheel upload')
+    os.system('python3 setup.py sdist bdist_wheel')
     os.system('twine upload dist/*')
     sys.exit()
 

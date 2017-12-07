@@ -91,7 +91,7 @@ class URL:
         response = get_url(url, get_timeout(), get_exceptions())
 
         if not response or not response.text:
-            logger.warning('Nothing found at %s', url)
+            logger.debug('Nothing found at %s', url)
             return
 
         self.url = response.url

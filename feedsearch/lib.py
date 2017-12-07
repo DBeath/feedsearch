@@ -1,5 +1,6 @@
 import functools
 import logging
+import time
 from contextlib import contextmanager
 
 import requests
@@ -133,18 +134,21 @@ def get_url(url, timeout=None, exceptions=False, **kwargs):
     :return: Requests Response object
     """
     timeout = timeout if timeout else get_timeout()
-    if exceptions:
+
+    logger.info('Fetching URL: %s', url)
+    start_time = time.perf_counter()
+    try:
         response = get_session().get(url, timeout=timeout, **kwargs)
         response.raise_for_status()
-        return response
-    else:
-        try:
-            response = get_session().get(url, timeout=timeout, **kwargs)
-            response.raise_for_status()
-        except RequestException as e:
-            logger.warning('RequestException while getting URL: %s, %s', url, e)
-            return None
-        return response
+    except RequestException as ex:
+        logger.warning('RequestException while getting URL: %s, %s', url, str(ex))
+        if exceptions:
+            raise
+        return None
+    finally:
+        dur = int((time.perf_counter() - start_time) * 1000)
+        logger.debug('Performed fetch of URL: %s in %sms', url, dur)
+    return response
 
 
 def create_soup(text: str) -> BeautifulSoup:
@@ -180,3 +184,22 @@ def get_site_root(url: str) -> str:
     url = coerce_url(url)
     parsed = url_parse(url, scheme='http')
     return parsed.netloc
+
+
+def timeit(func):
+    """
+    A decorator used to log the function execution time
+    """
+    @functools.wraps(func)
+    def wrap(*args, **kwargs):
+        start = time.perf_counter()
+
+        result = func(*args, **kwargs)
+
+        dur = int((time.perf_counter() - start) * 1000)
+
+        logger.debug('Function %s %sms', func.__name__, dur)
+
+        return result
+
+    return wrap

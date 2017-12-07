@@ -9,7 +9,8 @@ from .lib import (create_soup,
                   get_site_root,
                   create_requests_session,
                   default_timeout,
-                  set_bs4_parser)
+                  set_bs4_parser,
+                  timeit)
 from .site_meta import SiteMeta
 from .url import URL
 
@@ -146,6 +147,7 @@ def search(url,
         return _find_feeds(url, check_all, info, favicon_data_uri)
 
 
+@timeit
 def _find_feeds(url: str,
                check_all: bool=False,
                feed_info: bool=False,
@@ -225,7 +227,8 @@ def _find_feeds(url: str,
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug('Searched <a> links in %sms', search_time)
 
-    if len(feeds) and not check_all:
+    # Only guess URLs if check_all is True.
+    if not check_all:
         return sort_urls(feeds, url)
 
     # Guessing potential URLs.
