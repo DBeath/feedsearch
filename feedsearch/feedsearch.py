@@ -150,9 +150,9 @@ def search(url,
 
 @timeit
 def _find_feeds(url: str,
-               check_all: bool=False,
-               feed_info: bool=False,
-               favicon_data_uri: bool=False) -> List[FeedInfo]:
+                check_all: bool=False,
+                feed_info: bool=False,
+                favicon_data_uri: bool=False) -> List[FeedInfo]:
     """
     Finds feeds
 
@@ -234,7 +234,7 @@ def _find_feeds(url: str,
 
     # Guessing potential URLs.
     fns = ["atom.xml", "index.atom", "index.rdf", "rss.xml", "index.xml",
-           "index.rss"]
+           "index.rss", "index.json"]
     urls = list(urljoin(url, f) for f in fns)
     found_guessed = finder.check_urls(urls)
     feeds.extend(found_guessed)

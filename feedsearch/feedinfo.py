@@ -65,17 +65,10 @@ class FeedInfo:
             if url.is_feed:
                 return self.update_from_url(url.url, url.content_type, url.data)
 
-        # Parse data as JSON object if content type is set as JSON
-        if 'application/json' in self.content_type:
-            try:
-                return self.parse_json(dict(data))
-            except AttributeError:
-                pass
-
-        # Try to parse data as JSON just in case data is JSON string somehow
+        # Try to parse data as JSON
         try:
             json_data = json.loads(data)
-            logger.debug('%s data was un-parsed JSON', self)
+            logger.debug('%s data is JSON', self)
             self.content_type = 'application/json'
             return self.parse_json(json_data)
         except json.JSONDecodeError:

@@ -76,11 +76,12 @@ class URL:
         :return: bool
         """
         data = text.lower()
-        if data.count('<html'):
+        if data and data[:100].count('<html'):
             return False
         return bool(data.count('<rss') +
                     data.count('<rdf') +
-                    data.count('<feed'))
+                    data.count('<feed') +
+                    data.count('jsonfeed.org'))
 
     def get_is_feed(self, url: str) -> None:
         """
@@ -98,12 +99,5 @@ class URL:
         self.url = response.url
         self.content_type = response.headers.get('content-type')
 
-        # Attempt to parse response as JSON
-        try:
-            self.data = response.json()
-            self.is_feed = self.is_json_feed(self.data)
-            self.content_type = 'application/json'
-        # If not valid JSON then parse as text string
-        except ValueError:
-            self.data = response.text
-            self.is_feed = self.is_feed_data(response.text)
+        self.data = response.text
+        self.is_feed = self.is_feed_data(response.text)
