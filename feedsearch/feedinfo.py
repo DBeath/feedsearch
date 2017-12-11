@@ -18,7 +18,7 @@ class FeedInfo:
                  title: str='',
                  description: str='',
                  site_name: str='',
-                 favicon_url: str='',
+                 favicon: str='',
                  hub: str='',
                  is_push: bool=False,
                  content_type: str='',
@@ -32,7 +32,7 @@ class FeedInfo:
         self.title = title
         self.description = description
         self.site_name = site_name
-        self.favicon = favicon_url
+        self.favicon = favicon
         self.hub = hub
         self.is_push = is_push
         self.content_type = content_type
