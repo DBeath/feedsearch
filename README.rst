@@ -51,7 +51,7 @@ To get Feed and Site metadata:
                     'journalism in the public interest.',
      'favicon': 'https://assets.propublica.org/prod/v3/images/favicon.ico',
      'favicon_data_uri': '',
-     'hub': 'http://feedpress.superfeedr.com/',
+     'hubs': ['http://feedpress.superfeedr.com/'],
      'is_push': True,
      'score': 4,
      'self_url': 'http://feeds.propublica.org/propublica/main',
@@ -99,7 +99,7 @@ FeedInfo objects may have the following values if *info* is *True*:
 - **description**: *str*: Feed description.
 - **favicon**: *str*: Url of site Favicon.
 - **favicon_data_uri**: *str*: Data Uri of site Favicon.
-- **hub**: *str*: `Websub <https://en.wikipedia.org/wiki/WebSub>`_ hub of feed if available.
+- **hubs**: *List[str]*: List of `Websub <https://en.wikipedia.org/wiki/WebSub>`_ hubs of feed if available.
 - **is_push**: *bool*: True if feed contains valid Websub data.
 - **score**: *int*: Computed relevance of feed url. May be safely ignored.
 - **self_url**: *str*: *ref="self"* value returned from feed links. In some cases is different from feed url.

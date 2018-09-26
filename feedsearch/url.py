@@ -23,6 +23,7 @@ class URL:
         self.is_feed: bool = False
         self.content_type: str = ''
         self.headers: dict = {}
+        self.links: dict = {}
 
         if immediate_get:
             self.get_is_feed(self.url)
@@ -106,4 +107,5 @@ class URL:
 
         self.data = response.text
         self.headers = response.headers
+        self.links = response.links
         self.is_feed = self.is_feed_data(response.text)
