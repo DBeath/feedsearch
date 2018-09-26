@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 class FeedFinder:
     def __init__(self,
-                 feed_info: bool=False,
-                 favicon_data_uri: bool=False) -> None:
-        self.feed_info = feed_info
-        self.favicon_data_uri = favicon_data_uri
-        self.soup: BeautifulSoup=None
-        self.site_meta: SiteMeta=None
-        self.feeds: list=[]
+                 feed_info: bool = False,
+                 favicon_data_uri: bool = False) -> None:
+        self.feed_info: bool = feed_info
+        self.favicon_data_uri: bool = favicon_data_uri
+        self.soup: BeautifulSoup = None
+        self.site_meta: SiteMeta = None
+        self.feeds: list = []
 
     def check_urls(self, urls: List[str]) -> List[FeedInfo]:
         """
@@ -72,7 +72,7 @@ class FeedFinder:
         :param url: Url of the soup
         :return: list
         """
-        links: List[str]=[]
+        links: List[str] = []
         for link in self.soup.find_all("link"):
             if link.get("type") in ["application/rss+xml",
                                     "text/xml",
@@ -115,14 +115,14 @@ class FeedFinder:
 
 
 def search(url,
-           check_all: bool=False,
-           info: bool=False,
-           timeout=default_timeout,
-           user_agent: str='',
-           max_redirects: int=30,
-           parser: str='html.parser',
-           exceptions: bool=False,
-           favicon_data_uri: bool=False):
+           check_all: bool = False,
+           info: bool = False,
+           timeout: Tuple[int, int] = default_timeout,
+           user_agent: str = '',
+           max_redirects: int = 30,
+           parser: str = 'html.parser',
+           exceptions: bool = False,
+           favicon_data_uri: bool = False):
     """
     Search for RSS or ATOM feeds at a given URL
 
@@ -150,9 +150,9 @@ def search(url,
 
 @timeit
 def _find_feeds(url: str,
-                check_all: bool=False,
-                feed_info: bool=False,
-                favicon_data_uri: bool=False) -> List[FeedInfo]:
+                check_all: bool = False,
+                feed_info: bool = False,
+                favicon_data_uri: bool = False) -> List[FeedInfo]:
     """
     Finds feeds
 
@@ -166,9 +166,9 @@ def _find_feeds(url: str,
     finder = FeedFinder(feed_info=feed_info, favicon_data_uri=favicon_data_uri)
 
     # Format the URL properly.
-    url = coerce_url(url)
+    url: str = coerce_url(url)
 
-    feeds = []
+    feeds: list = []
 
     start_time = time.perf_counter()
 
@@ -206,7 +206,7 @@ def _find_feeds(url: str,
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug('Searched <link> tags in %sms', search_time)
 
-    if len(feeds) and not check_all:
+    if feeds and not check_all:
         return sort_urls(feeds, url)
 
     # Look for <a> tags.
@@ -214,13 +214,13 @@ def _find_feeds(url: str,
     local, remote = finder.search_a_tags()
 
     # Check the local URLs.
-    local = [urljoin(url, l) for l in local]
+    local: list = [urljoin(url, l) for l in local]
     found_local = finder.check_urls(local)
     feeds.extend(found_local)
     logger.info('Found %s local <a> links to feeds.', len(found_local))
 
     # Check the remote URLs.
-    remote = [urljoin(url, l) for l in remote]
+    remote: list = [urljoin(url, l) for l in remote]
     found_remote = finder.check_urls(remote)
     feeds.extend(found_remote)
     logger.info('Found %s remote <a> links to feeds.', len(found_remote))
@@ -246,7 +246,7 @@ def _find_feeds(url: str,
     return sort_urls(feeds, url)
 
 
-def url_feed_score(url: str, original_url: str='') -> int:
+def url_feed_score(url: str, original_url: str = '') -> int:
     """
     Return a Score based on estimated relevance of the feed Url
     to the original search Url
@@ -279,7 +279,7 @@ def url_feed_score(url: str, original_url: str='') -> int:
     return score
 
 
-def sort_urls(feeds: List[FeedInfo], original_url: str='') -> List[FeedInfo]:
+def sort_urls(feeds: List[FeedInfo], original_url: str = '') -> List[FeedInfo]:
     """
     Sort list of feeds based on Url score
 
