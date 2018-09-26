@@ -1,11 +1,11 @@
 import json
 import logging
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 
 import feedparser
 from bs4 import BeautifulSoup
 
-from .lib import bs4_parser
+from .lib import bs4_parser, parse_header_links
 from .url import URL
 
 logger = logging.getLogger(__name__)
@@ -14,26 +14,26 @@ logger = logging.getLogger(__name__)
 class FeedInfo:
     def __init__(self,
                  url: str,
-                 site_url: str='',
-                 title: str='',
-                 description: str='',
-                 site_name: str='',
-                 favicon: str='',
-                 hub: str='',
-                 is_push: bool=False,
-                 content_type: str='',
-                 version: str='',
-                 self_url: str='',
-                 score: int=0,
-                 bozo: int=0,
-                 favicon_data_uri: str='') -> None:
+                 site_url: str = '',
+                 title: str = '',
+                 description: str = '',
+                 site_name: str = '',
+                 favicon: str = '',
+                 hubs: list = None,
+                 is_push: bool = False,
+                 content_type: str = '',
+                 version: str = '',
+                 self_url: str = '',
+                 score: int = 0,
+                 bozo: int = 0,
+                 favicon_data_uri: str = '') -> None:
         self.url = url
         self.site_url = site_url
         self.title = title
         self.description = description
         self.site_name = site_name
         self.favicon = favicon
-        self.hub = hub
+        self.hubs = hubs or []
         self.is_push = is_push
         self.content_type = content_type
         self.version = version
@@ -51,29 +51,47 @@ class FeedInfo:
     def __hash__(self):
         return hash(self.url)
 
-    def get_info(self, data: Any=None) -> None:
+    def get_info(self, data: Any = None, links: dict = None) -> None:
         """
         Get Feed info from data.
 
         :param data: Feed data, XML string or JSON object
+        :param headers: HTTP Headers of the Feed Url
         :return: None
         """
         logger.debug('Getting FeedInfo for %s', self.url)
 
         if not data:
-            url = URL(self.url)
-            if url.is_feed:
-                return self.update_from_url(url.url, url.content_type, url.data)
+            url_object = URL(self.url)
+            if url_object.is_feed:
+                self.update_from_url(url_object.url,
+                                     url_object.content_type,
+                                     url_object.data)
+
+        # if not headers and url_object:
+        #     headers = url_object.headers
+
+        # if headers:
+        #     hubs, self_url = self.header_links(headers)
 
         # Try to parse data as JSON
         try:
             json_data = json.loads(data)
             logger.debug('%s data is JSON', self)
             self.content_type = 'application/json'
-            return self.parse_json(json_data)
+            self.parse_json(json_data)
+            return
         except json.JSONDecodeError:
             pass
 
+        self.parse_xml(data)
+
+    def parse_xml(self, data: str) -> None:
+        """
+        Get info from XML (RSS or ATOM) feed.
+        :param data: XML string
+        :return: None
+        """
         # Parse data with feedparser
         # Don't wrap this in try/except, feedparser eats errors and returns bozo instead
         parsed = self.parse_feed(data)
@@ -84,15 +102,14 @@ class FeedInfo:
 
         feed = parsed.get('feed')
 
-        self.hub, self.self_url = self.pubsubhubbub_links(feed)
+        self.hubs, self.self_url = self.pubsubhubbub_links(feed)
 
-        if self.hub and self.self_url:
+        if self.hubs and self.self_url:
             self.is_push = True
 
         self.version = parsed.get('version')
         self.title = self.feed_title(feed)
         self.description = self.feed_description(feed)
-
 
     def parse_json(self, data: dict) -> None:
         """
@@ -111,7 +128,8 @@ class FeedInfo:
         if feed_url and feed_url != self.url:
             url = URL(feed_url)
             if url.is_feed:
-                return self.update_from_url(url.url, url.content_type, url.data)
+                self.update_from_url(url.url, url.content_type, url.data)
+                return
 
         self.title = data.get('title')
         self.description = data.get('description')
@@ -121,11 +139,11 @@ class FeedInfo:
             self.favicon = favicon
 
         try:
-            self.hub = data.get('hubs', [])[0].get('url')
+            self.hubs = list(hub.get('url') for hub in data.get('hubs', []))
         except (IndexError, AttributeError):
             pass
 
-        if self.hub:
+        if self.hubs:
             self.is_push = True
 
     @staticmethod
@@ -165,8 +183,8 @@ class FeedInfo:
             if len(title) > 1024:
                 title = title[:1020] + u'...'
             return title
-        except Exception as e:
-            logger.exception('Failed to clean title: %s', e)
+        except Exception as ex:
+            logger.exception('Failed to clean title: %s', ex)
             return ''
 
     @staticmethod
@@ -180,11 +198,10 @@ class FeedInfo:
         subtitle = feed.get('subtitle', None)
         if subtitle:
             return subtitle
-        else:
-            return feed.get('description', None)
+        return feed.get('description', None)
 
     @staticmethod
-    def pubsubhubbub_links(feed: dict) -> Tuple[str, str]:
+    def pubsubhubbub_links(feed: dict) -> Tuple[List[str], str]:
         """
         Returns a tuple containing the hub url and the self url for
         a parsed feed.
@@ -194,26 +211,17 @@ class FeedInfo:
         :return: tuple
         """
 
-        hub_url = None
-        self_url = None
+        hub_urls: List[str] = []
+        self_url: str = ''
 
-        try:
-            for link in feed.get('links'):
-                if link['rel'] == 'hub':
-                    hub_url = link['href']
-                if link['rel'] == 'self':
-                    self_url = link['href']
-        except AttributeError as e:
-            logger.warning('Attribute Error getting feed links: %s', e)
-            return '', ''
-
-        return hub_url, self_url
+        links = feed.get('links', [])
+        return find_hubs_and_self_links(links)
 
     def add_site_info(self,
-                      url: str='',
-                      name: str='',
-                      icon: str='',
-                      icon_data_uri: str=''):
+                      url: str = '',
+                      name: str = '',
+                      icon: str = '',
+                      icon_data_uri: str = '') -> None:
         """
         Adds site meta info to FeedInfo
 
@@ -228,7 +236,10 @@ class FeedInfo:
         self.favicon = icon
         self.favicon_data_uri = icon_data_uri
 
-    def update_from_url(self, url: str, content_type: str='', data: Any=None):
+    def update_from_url(self,
+                        url: str,
+                        content_type: str = '',
+                        data: Any = None) -> None:
         """
         Update a FeedInfo object from a Url
 
@@ -242,16 +253,17 @@ class FeedInfo:
         self.get_info(data)
 
     @classmethod
-    def create_from_url(cls, url: str, content_type: str=''):
+    def create_from_url(cls, url: str, content_type: str = '') -> FeedInfo:
         """
         Create a FeedInfo object from a Url
+
         :param url: Url string
         :param content_type: Content-Type of returned Url
         :return: FeedInfo
         """
         return cls(url=url, content_type=content_type)
 
-    def serialize(self):
+    def serialize(self) -> str:
         """
         Attempt to serialize FeedInfo to JSON string
 
@@ -259,3 +271,39 @@ class FeedInfo:
         """
         return json.dumps(
             self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+
+    def header_links(self, headers: Dict) -> Tuple[list[str], str]:
+        """
+        Attempt to get self and hub links from HTTP headers
+        https://www.w3.org/TR/websub/#x4-discovery
+
+        :param headers: Dict of HTTP headers
+        :return: None
+        """
+        link_header = headers.get('Link')
+        if link_header:
+            links = parse_header_links(link_header)
+            return find_hubs_and_self_links(links)
+        return [], ''
+
+    def find_hubs_and_self_links(links: list[dict]) -> Tuple[list[str], str]:
+        """
+        Parses a list of links into self and hubs urls
+
+        :param links: List of parsed HTTP Link Dicts
+        :return: Tuple
+        """
+        hub_urls: List[str] = []
+        self_url: str = ''
+
+        for link in links:
+            try:
+                if link['rel'] == 'hub':
+                    href: str = link['href']
+                    hub_urls.append(href)
+                elif link['rel'] == 'self':
+                    self_url = link['href']
+            except KeyError:
+                continue
+
+        return hub_urls, self_url

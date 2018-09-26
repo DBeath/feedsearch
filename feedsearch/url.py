@@ -9,18 +9,23 @@ logger = logging.getLogger(__name__)
 
 
 class URL:
-    def __init__(self, url: str, data: Any=None) -> None:
+    def __init__(self,
+                 url: str,
+                 data: Any = None,
+                 immediate_get: bool = True) -> None:
         """
         Initialise URL object and immediately fetch URL to check if feed.
 
         :param url: URL string
         """
-        self.url = url
-        self.data = data
-        self.is_feed = False
-        self.content_type = ''
+        self.url: str = url
+        self.data: Any = data
+        self.is_feed: bool = False
+        self.content_type: str = ''
+        self.headers: dict = {}
 
-        self.get_is_feed(self.url)
+        if immediate_get:
+            self.get_is_feed(self.url)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.url!r})'
@@ -100,4 +105,5 @@ class URL:
         self.content_type = response.headers.get('content-type')
 
         self.data = response.text
+        self.headers = response.headers
         self.is_feed = self.is_feed_data(response.text)
