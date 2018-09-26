@@ -177,7 +177,7 @@ def coerce_url(url: str) -> str:
     :return: str
     """
     url.strip()
-    if url.startswith("is_feed://"):
+    if url.startswith("feed://"):
         return url_fix("http://{0}".format(url[7:]))
     for proto in ["http://", "https://"]:
         if url.startswith(proto):
