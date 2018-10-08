@@ -12,21 +12,23 @@ logger = logging.getLogger(__name__)
 
 
 class FeedInfo:
-    def __init__(self,
-                 url: str,
-                 site_url: str = '',
-                 title: str = '',
-                 description: str = '',
-                 site_name: str = '',
-                 favicon: str = '',
-                 hubs: list = None,
-                 is_push: bool = False,
-                 content_type: str = '',
-                 version: str = '',
-                 self_url: str = '',
-                 score: int = 0,
-                 bozo: int = 0,
-                 favicon_data_uri: str = '') -> None:
+    def __init__(
+        self,
+        url: str,
+        site_url: str = "",
+        title: str = "",
+        description: str = "",
+        site_name: str = "",
+        favicon: str = "",
+        hubs: list = None,
+        is_push: bool = False,
+        content_type: str = "",
+        version: str = "",
+        self_url: str = "",
+        score: int = 0,
+        bozo: int = 0,
+        favicon_data_uri: str = "",
+    ) -> None:
         self.url = url
         self.site_url = site_url
         self.title = title
@@ -43,7 +45,7 @@ class FeedInfo:
         self.favicon_data_uri = favicon_data_uri
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.url!r})'
+        return f"{self.__class__.__name__}({self.url!r})"
 
     def __eq__(self, other):
         return self.url == other.url
@@ -59,17 +61,19 @@ class FeedInfo:
         :param headers: HTTP Headers of the Feed Url
         :return: None
         """
-        logger.debug('Getting FeedInfo for %s', self.url)
+        logger.debug("Getting FeedInfo for %s", self.url)
 
         # Get data from URL if no data provided
         url_object = None
         if not data:
             url_object = URL(self.url)
             if url_object.is_feed:
-                self.update_from_url(url_object.url,
-                                     url_object.content_type,
-                                     url_object.data,
-                                     url_object.headers)
+                self.update_from_url(
+                    url_object.url,
+                    url_object.content_type,
+                    url_object.data,
+                    url_object.headers,
+                )
 
         if not headers and url_object:
             headers = url_object.headers
@@ -82,8 +86,8 @@ class FeedInfo:
         # Try to parse data as JSON
         try:
             json_data = json.loads(data)
-            logger.debug('%s data is JSON', self)
-            self.content_type = 'application/json'
+            logger.debug("%s data is JSON", self)
+            self.content_type = "application/json"
             self.parse_json(json_data)
             return
         except json.JSONDecodeError:
@@ -100,12 +104,12 @@ class FeedInfo:
         # Parse data with feedparser
         # Don't wrap this in try/except, feedparser eats errors and returns bozo instead
         parsed = self.parse_feed(data)
-        if not parsed or parsed.get('bozo') == 1:
+        if not parsed or parsed.get("bozo") == 1:
             self.bozo = 1
-            logger.warning('No valid feed data in %s', self.url)
+            logger.warning("No valid feed data in %s", self.url)
             return
 
-        feed = parsed.get('feed')
+        feed = parsed.get("feed")
 
         # Only search if no hubs already present from headers
         if not self.hubs:
@@ -114,7 +118,7 @@ class FeedInfo:
         if self.hubs and self.self_url:
             self.is_push = True
 
-        self.version = parsed.get('version')
+        self.version = parsed.get("version")
         self.title = self.feed_title(feed)
         self.description = self.feed_description(feed)
 
@@ -125,12 +129,12 @@ class FeedInfo:
         :param data: JSON object
         :return: None
         """
-        self.version = data.get('version')
-        if 'https://jsonfeed.org/version/' not in self.version:
+        self.version = data.get("version")
+        if "https://jsonfeed.org/version/" not in self.version:
             self.bozo = 1
             return
 
-        feed_url = data.get('feed_url')
+        feed_url = data.get("feed_url")
         # Check URL from feed data if mismatch
         if feed_url and feed_url != self.url:
             url = URL(feed_url)
@@ -138,17 +142,17 @@ class FeedInfo:
                 self.update_from_url(url.url, url.content_type, url.data)
                 return
 
-        self.title = data.get('title')
-        self.description = data.get('description')
+        self.title = data.get("title")
+        self.description = data.get("description")
 
-        favicon = data.get('favicon')
+        favicon = data.get("favicon")
         if favicon:
             self.favicon = favicon
 
         # Only search if no hubs already present from headers
         if not self.hubs:
             try:
-                self.hubs = list(hub.get('url') for hub in data.get('hubs', []))
+                self.hubs = list(hub.get("url") for hub in data.get("hubs", []))
             except (IndexError, AttributeError):
                 pass
 
@@ -166,16 +170,16 @@ class FeedInfo:
         return feedparser.parse(text)
 
     @staticmethod
-    def feed_title(feed: dict)-> str:
+    def feed_title(feed: dict) -> str:
         """
         Get feed title
 
         :param feed: feed dict
         :return: str
         """
-        title = feed.get('title', None)
+        title = feed.get("title", None)
         if not title:
-            return ''
+            return ""
         return FeedInfo.clean_title(title)
 
     @staticmethod
@@ -190,11 +194,11 @@ class FeedInfo:
         try:
             title = BeautifulSoup(title, bs4_parser).get_text()
             if len(title) > 1024:
-                title = title[:1020] + u'...'
+                title = title[:1020] + "..."
             return title
         except Exception as ex:
-            logger.exception('Failed to clean title: %s', ex)
-            return ''
+            logger.exception("Failed to clean title: %s", ex)
+            return ""
 
     @staticmethod
     def feed_description(feed: dict) -> str:
@@ -204,10 +208,10 @@ class FeedInfo:
         :param feed: feed dict
         :return: str
         """
-        subtitle = feed.get('subtitle', None)
+        subtitle = feed.get("subtitle", None)
         if subtitle:
             return subtitle
-        return feed.get('description', None)
+        return feed.get("description", None)
 
     @staticmethod
     def websub_links(feed: dict) -> Tuple[List[str], str]:
@@ -219,18 +223,12 @@ class FeedInfo:
         :type parsed: dict
         :return: tuple
         """
-
-        hub_urls: List[str] = []
-        self_url: str = ''
-
-        links = feed.get('links', [])
+        links = feed.get("links", [])
         return FeedInfo.find_hubs_and_self_links(links)
 
-    def add_site_info(self,
-                      url: str = '',
-                      name: str = '',
-                      icon: str = '',
-                      icon_data_uri: str = '') -> None:
+    def add_site_info(
+        self, url: str = "", name: str = "", icon: str = "", icon_data_uri: str = ""
+    ) -> None:
         """
         Adds site meta info to FeedInfo
 
@@ -245,11 +243,9 @@ class FeedInfo:
         self.favicon = icon
         self.favicon_data_uri = icon_data_uri
 
-    def update_from_url(self,
-                        url: str,
-                        content_type: str = '',
-                        data: Any = None,
-                        headers: dict = None) -> None:
+    def update_from_url(
+        self, url: str, content_type: str = "", data: Any = None, headers: dict = None
+    ) -> None:
         """
         Update a FeedInfo object from a Url object
 
@@ -264,7 +260,7 @@ class FeedInfo:
         self.get_info(data, headers)
 
     @classmethod
-    def create_from_url(cls, url: str, content_type: str = ''):
+    def create_from_url(cls, url: str, content_type: str = ""):
         """
         Create a FeedInfo object from a Url
 
@@ -280,8 +276,7 @@ class FeedInfo:
 
         :return: JSON
         """
-        return json.dumps(
-            self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
     @staticmethod
     def header_links(headers: dict) -> Tuple[List[str], str]:
@@ -292,7 +287,7 @@ class FeedInfo:
         :param headers: Dict of HTTP headers
         :return: None
         """
-        link_header = headers.get('Link')
+        link_header = headers.get("Link")
         links: list = []
         if link_header:
             links = parse_header_links(link_header)
@@ -307,18 +302,18 @@ class FeedInfo:
         :return: Tuple
         """
         hub_urls: List[str] = []
-        self_url: str = ''
+        self_url: str = ""
 
         if not links:
-            return [], ''
+            return [], ""
 
         for link in links:
             try:
-                if link['rel'] == 'hub':
-                    href: str = link['href']
+                if link["rel"] == "hub":
+                    href: str = link["href"]
                     hub_urls.append(href)
-                elif link['rel'] == 'self':
-                    self_url = link['href']
+                elif link["rel"] == "self":
+                    self_url = link["href"]
             except KeyError:
                 continue
 

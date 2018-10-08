@@ -1,18 +1,13 @@
 import logging
 from typing import Any
 
-from .lib import (get_url,
-                  get_timeout,
-                  get_exceptions)
+from .lib import get_url, get_timeout, get_exceptions
 
 logger = logging.getLogger(__name__)
 
 
 class URL:
-    def __init__(self,
-                 url: str,
-                 data: Any = None,
-                 immediate_get: bool = True) -> None:
+    def __init__(self, url: str, data: Any = None, immediate_get: bool = True) -> None:
         """
         Initialise URL object and immediately fetch URL to check if feed.
 
@@ -21,7 +16,7 @@ class URL:
         self.url: str = url
         self.data: Any = data
         self.is_feed: bool = False
-        self.content_type: str = ''
+        self.content_type: str = ""
         self.headers: dict = {}
         self.links: dict = {}
 
@@ -29,7 +24,7 @@ class URL:
             self.get_is_feed(self.url)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.url!r})'
+        return f"{self.__class__.__name__}({self.url!r})"
 
     @staticmethod
     def is_feed_url(url: str) -> bool:
@@ -39,11 +34,9 @@ class URL:
         :param url: URL string
         :return: bool
         """
-        return any(map(url.lower().endswith, ['.rss',
-                                              '.rdf',
-                                              '.xml',
-                                              '.atom',
-                                              '.json']))
+        return any(
+            map(url.lower().endswith, [".rss", ".rdf", ".xml", ".atom", ".json"])
+        )
 
     @staticmethod
     def is_feedlike_url(url: str) -> bool:
@@ -53,12 +46,9 @@ class URL:
         :param url: URL string
         :return: bool
         """
-        return any(map(url.lower().count, ['rss',
-                                           'rdf',
-                                           'xml',
-                                           'atom',
-                                           'feed',
-                                           'json']))
+        return any(
+            map(url.lower().count, ["rss", "rdf", "xml", "atom", "feed", "json"])
+        )
 
     @staticmethod
     def is_json_feed(json: dict) -> bool:
@@ -68,8 +58,8 @@ class URL:
         :param json: Parsed JSON
         :return: bool
         """
-        version = json.get('version')
-        if not version or not 'https://jsonfeed.org/version/' in version:
+        version = json.get("version")
+        if not version or "https://jsonfeed.org/version/" not in version:
             return False
         return True
 
@@ -82,12 +72,14 @@ class URL:
         :return: bool
         """
         data = text.lower()
-        if data and data[:100].count('<html'):
+        if data and data[:100].count("<html"):
             return False
-        return bool(data.count('<rss') +
-                    data.count('<rdf') +
-                    data.count('<feed') +
-                    data.count('jsonfeed.org'))
+        return bool(
+            data.count("<rss")
+            + data.count("<rdf")
+            + data.count("<feed")
+            + data.count("jsonfeed.org")
+        )
 
     def get_is_feed(self, url: str) -> None:
         """
@@ -99,11 +91,11 @@ class URL:
         response = get_url(url, get_timeout(), get_exceptions())
 
         if not response or not response.text:
-            logger.debug('Nothing found at %s', url)
+            logger.debug("Nothing found at %s", url)
             return
 
         self.url = response.url
-        self.content_type = response.headers.get('content-type')
+        self.content_type = response.headers.get("content-type")
 
         self.data = response.text
         self.headers = response.headers

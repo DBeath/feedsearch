@@ -17,7 +17,7 @@ LOCAL_CONTEXT = Local()
 
 logger = logging.getLogger(__name__)
 
-bs4_parser = 'html.parser'
+bs4_parser = "html.parser"
 
 default_timeout = (10.05, 30)
 
@@ -29,7 +29,7 @@ def get_session():
 
     :return: Requests Session
     """
-    return getattr(LOCAL_CONTEXT, 'session', create_requests_session())
+    return getattr(LOCAL_CONTEXT, "session", create_requests_session())
 
 
 def get_timeout():
@@ -38,7 +38,7 @@ def get_timeout():
 
     :return: Request timeout
     """
-    return getattr(LOCAL_CONTEXT, 'timeout', default_timeout)
+    return getattr(LOCAL_CONTEXT, "timeout", default_timeout)
 
 
 def get_exceptions() -> bool:
@@ -47,7 +47,7 @@ def get_exceptions() -> bool:
 
     :return: Catch exception boolean
     """
-    return getattr(LOCAL_CONTEXT, 'exceptions', False)
+    return getattr(LOCAL_CONTEXT, "exceptions", False)
 
 
 def _user_agent() -> str:
@@ -56,14 +56,16 @@ def _user_agent() -> str:
 
     :return: str
     """
-    return f'FeedSearch/{__version__} (https://github.com/DBeath/feedsearch)'
+    return f"FeedSearch/{__version__} (https://github.com/DBeath/feedsearch)"
 
 
 @contextmanager
-def create_requests_session(user_agent: str='',
-                            max_redirects: int=30,
-                            timeout=default_timeout,
-                            exceptions: bool=False):
+def create_requests_session(
+    user_agent: str = "",
+    max_redirects: int = 30,
+    timeout=default_timeout,
+    exceptions: bool = False,
+):
     """
     Creates a Requests Session and sets User-Agent header and Max Redirects
 
@@ -78,14 +80,14 @@ def create_requests_session(user_agent: str='',
 
     # Set User-Agent header
     user_agent = user_agent if user_agent else _user_agent()
-    session.headers.update({ "User-Agent": user_agent })
+    session.headers.update({"User-Agent": user_agent})
 
     session.max_redirects = max_redirects
 
     # Add request session to local context
-    setattr(LOCAL_CONTEXT, 'session', session)
-    setattr(LOCAL_CONTEXT, 'timeout', timeout)
-    setattr(LOCAL_CONTEXT, 'exceptions', exceptions)
+    setattr(LOCAL_CONTEXT, "session", session)
+    setattr(LOCAL_CONTEXT, "timeout", timeout)
+    setattr(LOCAL_CONTEXT, "exceptions", exceptions)
 
     yield session
 
@@ -96,10 +98,12 @@ def create_requests_session(user_agent: str='',
     release_local(LOCAL_CONTEXT)
 
 
-def requests_session(user_agent: str='',
-                     max_redirects: int=30,
-                     timeout=default_timeout,
-                     exceptions: bool = False):
+def requests_session(
+    user_agent: str = "",
+    max_redirects: int = 30,
+    timeout=default_timeout,
+    exceptions: bool = False,
+):
     """
     Wraps a requests session around a function.
 
@@ -107,10 +111,13 @@ def requests_session(user_agent: str='',
     :param max_redirects: Maximum number of redirects
     :return: decorator function
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            with create_requests_session(user_agent, max_redirects, timeout, exceptions):
+            with create_requests_session(
+                user_agent, max_redirects, timeout, exceptions
+            ):
                 # Call wrapped function
                 return func(*args, **kwargs)
 
@@ -131,7 +138,9 @@ def set_bs4_parser(parser: str) -> None:
         bs4_parser = parser
 
 
-def get_url(url: str, timeout=None, exceptions: bool=False, **kwargs) -> Optional[Response]:
+def get_url(
+    url: str, timeout=None, exceptions: bool = False, **kwargs
+) -> Optional[Response]:
     """
     Performs a GET request on a URL
 
@@ -143,19 +152,19 @@ def get_url(url: str, timeout=None, exceptions: bool=False, **kwargs) -> Optiona
     """
     timeout = timeout if timeout else get_timeout()
 
-    logger.info('Fetching URL: %s', url)
+    logger.info("Fetching URL: %s", url)
     start_time = time.perf_counter()
     try:
         response = get_session().get(url, timeout=timeout, **kwargs)
         response.raise_for_status()
     except RequestException as ex:
-        logger.warning('RequestException while getting URL: %s, %s', url, str(ex))
+        logger.warning("RequestException while getting URL: %s, %s", url, str(ex))
         if exceptions:
             raise
         return None
     finally:
         dur = int((time.perf_counter() - start_time) * 1000)
-        logger.debug('Performed fetch of URL: %s in %sms', url, dur)
+        logger.debug("Performed fetch of URL: %s in %sms", url, dur)
     return response
 
 
@@ -190,7 +199,7 @@ def get_site_root(url: str) -> str:
     Find the root domain of a url
     """
     url = coerce_url(url)
-    parsed = url_parse(url, scheme='http')
+    parsed = url_parse(url, scheme="http")
     return parsed.netloc
 
 
@@ -198,6 +207,7 @@ def timeit(func):
     """
     A decorator used to log the function execution time
     """
+
     @functools.wraps(func)
     def wrap(*args, **kwargs):
         start = time.perf_counter()
@@ -206,11 +216,12 @@ def timeit(func):
 
         dur = int((time.perf_counter() - start) * 1000)
 
-        logger.debug('Function name=%s duration=%sms', func.__name__, dur)
+        logger.debug("Function name=%s duration=%sms", func.__name__, dur)
 
         return result
 
     return wrap
+
 
 def parse_header_links(value):
     """
@@ -230,7 +241,7 @@ def parse_header_links(value):
         try:
             url, params = val.split(";", 1)
         except ValueError:
-            url, params = val, ''
+            url, params = val, ""
 
         link = {}
 

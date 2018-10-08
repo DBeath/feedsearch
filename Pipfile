@@ -1,24 +1,22 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-
 [dev-packages]
-
 twine = "*"
-
+black = "*"
+"flake8" = "*"
 
 [packages]
-
 requests = "*"
 "beautifulsoup4" = "*"
 feedparser = "*"
 click = "*"
 werkzeug = "*"
 
-
 [requires]
-
 python_version = "3.6"
+
+[pipenv]
+allow_prereleases = true
