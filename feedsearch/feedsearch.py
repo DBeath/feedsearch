@@ -191,13 +191,14 @@ def _find_feeds(
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug("Searched url in %sms", search_time)
 
-    # If Url is already a feed, create and return FeedInfo
+    # If URL is already a feed, create and return FeedInfo
     if found_url.is_feed:
         finder.get_site_info(url)
         found = finder.create_feed_info(found_url)
         feeds.append(found)
         return feeds
 
+    # Return nothing if there is no data from the URL
     if not found_url.data:
         return []
 
@@ -216,6 +217,19 @@ def _find_feeds(
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug("Searched <link> tags in %sms", search_time)
 
+    # Return if feeds are already found and check_all is False.
+    if feeds and not check_all:
+        return sort_urls(feeds, url)
+
+    # Search for default CMS feeds.
+    # We run this only if feeds are not already found in the <link> tags, as
+    # any good CMS should advertise feeds in the site meta.
+    logger.debug("Looking for CMS feeds.")
+    cms_urls = finder.site_meta.cms_feed_urls()
+    found_cms = finder.check_urls(cms_urls)
+    feeds.extend(found_cms)
+
+    # Return if feeds are already found and check_all is False.
     if feeds and not check_all:
         return sort_urls(feeds, url)
 

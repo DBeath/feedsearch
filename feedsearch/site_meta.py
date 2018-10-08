@@ -1,6 +1,7 @@
 import base64
 import logging
 
+from typing import List, Set
 from bs4 import BeautifulSoup
 from requests import codes
 from werkzeug.urls import url_parse
@@ -8,6 +9,9 @@ from werkzeug.urls import url_parse
 from .lib import get_url, coerce_url, create_soup, get_timeout, get_exceptions
 
 logger = logging.getLogger(__name__)
+
+
+WORDPRESS_URLS = ["/feed"]
 
 
 class SiteMeta:
@@ -64,7 +68,7 @@ class SiteMeta:
             response = get_url(url, get_timeout(), get_exceptions())
             if response:
                 logger.debug("Received url %s for favicon", response.url)
-                if response.status_code == codes.ok:
+                if response.status_code == 200:
                     icon = response.url
         return icon
 
@@ -151,3 +155,41 @@ class SiteMeta:
 
         response.close()
         return uri
+
+    def cms_feed_urls(self) -> List[str]:
+        """
+        Checks if a site is using a popular CMS, and returns
+        a list of default feed urls to check.
+
+        :return: List[str]
+        """
+        possible_urls: Set[str] = set()
+        if not self.soup:
+            return []
+
+        generator: str = ""
+        try:
+            generator = self.soup.find(name="meta", property="generator").get("content")
+        except AttributeError:
+            pass
+        if generator and isinstance(generator, str):
+            if "wordpress" in generator.lower():
+                possible_urls.update(WORDPRESS_URLS)
+
+        links = self.soup.find_all(name="link")
+        def is_wordpress_link(links: list) -> bool:
+            for link in links:
+                try:
+                    if "wp-content" in link.get("href"):
+                        return True
+                except:
+                    pass
+        
+        if is_wordpress_link(links):
+            possible_urls.update(WORDPRESS_URLS)
+
+        # Return urls appended to the root domain to allow searching
+        urls: List[str] = []
+        for url in possible_urls:
+            urls.append(self.domain + url)
+        return urls
