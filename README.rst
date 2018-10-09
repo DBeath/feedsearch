@@ -9,7 +9,7 @@ Feedsearch
 .. image:: https://img.shields.io/pypi/pyversions/feedsearch.svg
     :target: https://pypi.python.org/pypi/feedsearch
 
-Feedsearch is a Python library for searching websites for RSS and JSON feeds.
+Feedsearch is a Python library for searching websites for RSS, Atom, and JSON feeds.
 
 It was originally based on
 `Feedfinder2 <https://github.com/dfm/feedfinder2>`_ written by
@@ -63,9 +63,10 @@ To get Feed and Site metadata:
 
 Search will always return a list of *FeedInfo* objects, each of which will always have a *url* property.
 Feeds are sorted by the *score* value from highest to lowest, with a higher score theoretically indicating
-a more relevant feed, but whatever you do don't take this seriously.
+a more relevant feed compared to the original URL provided.
 
-If you only want the raw urls, then simply use a list comprehension on the result:
+If you only want the raw urls, then use a list comprehension on the result, or set the
+*as_urls* parameter to *True*:
 
 .. code-block:: python
 
@@ -75,6 +76,10 @@ If you only want the raw urls, then simply use a list comprehension on the resul
     >>> urls = [f.url for f in feeds]
     >>> urls
     ['https://jsonfeed.org/xml/rss.xml', 'https://jsonfeed.org/feed.json']
+
+    >>> feeds = search('http://jsonfeed.org', as_urls=True)
+    >>> feeds
+    >>> ['https://jsonfeed.org/xml/rss.xml', 'https://jsonfeed.org/feed.json']
 
 In addition to the URL, the ``search`` function takes the following optional keyword arguments:
 
@@ -88,6 +93,7 @@ In addition to the URL, the ``search`` function takes the following optional key
 - **exceptions**: *bool*: If False, will gracefully handle Requests exceptions and attempt to keep searching. 
   If True, will leave Requests exceptions uncaught to be handled by the caller. Defaults False.
 - **favicon_data_uri**: *bool*: Convert Favicon to Data Uri. Defaults False.
+- **as_urls**: *bool*: Return found Feeds as a list of URL strings instead of FeedInfo objects.
 
 FeedInfo Values
 ---------------
@@ -101,11 +107,11 @@ FeedInfo objects may have the following values if *info* is *True*:
 - **favicon_data_uri**: *str*: Data Uri of site Favicon.
 - **hubs**: *List[str]*: List of `Websub <https://en.wikipedia.org/wiki/WebSub>`_ hubs of feed if available.
 - **is_push**: *bool*: True if feed contains valid Websub data.
-- **score**: *int*: Computed relevance of feed url. May be safely ignored.
-- **self_url**: *str*: *ref="self"* value returned from feed links. In some cases is different from feed url.
+- **score**: *int*: Computed relevance of feed url value to provided URL. May be safely ignored.
+- **self_url**: *str*: *ref="self"* value returned from feed links. In some cases may be different from feed url.
 - **site_name**: *str*: Name of feed's website.
 - **site_url**: *str*: URL of feed's website.
 - **title**: *str*: Feed Title.
 - **url**: *str*: URL location of feed.
-- **version**: Feed version `XML values <https://pythonhosted.org/feedparser/version-detection.html>`_,
+- **version**: *str*: Feed version `XML values <https://pythonhosted.org/feedparser/version-detection.html>`_,
   or `JSON feed <https://jsonfeed.org/version/1>`_.

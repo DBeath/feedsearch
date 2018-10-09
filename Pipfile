@@ -7,6 +7,7 @@ name = "pypi"
 twine = "*"
 black = "*"
 "flake8" = "*"
+rope = "*"
 
 [packages]
 requests = "*"

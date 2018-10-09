@@ -101,3 +101,14 @@ class URL:
         self.headers = response.headers
         self.links = response.links
         self.is_feed = self.is_feed_data(response.text)
+
+    @property
+    def is_valid(self) -> bool:
+        """
+        Check if URL returned valid response
+
+        :return: bool
+        """
+        if self.url and self.data:
+            return True
+        return False

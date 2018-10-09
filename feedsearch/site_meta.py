@@ -1,9 +1,9 @@
 import base64
 import logging
+import re
 
-from typing import List, Set
-from bs4 import BeautifulSoup
-from requests import codes
+from typing import List, Set, Dict, Any
+from bs4 import BeautifulSoup, ResultSet
 from werkzeug.urls import url_parse
 
 from .lib import get_url, coerce_url, create_soup, get_timeout, get_exceptions
@@ -15,9 +15,10 @@ WORDPRESS_URLS = ["/feed"]
 
 
 class SiteMeta:
-    def __init__(self, url: str, soup: BeautifulSoup = None) -> None:
-        self.url = url
-        self.soup = soup
+    def __init__(self, url: str, data: Any = None, soup: BeautifulSoup = None) -> None:
+        self.url: str = url
+        self.data: Any = data
+        self.soup: BeautifulSoup = soup
         self.site_url: str = ""
         self.site_name: str = ""
         self.icon_url: str = ""
@@ -32,11 +33,22 @@ class SiteMeta:
         """
         self.domain = self.get_domain(self.url)
 
-        response = get_url(self.domain, get_timeout(), get_exceptions())
-        if not response or not response.text:
-            return
+        # Only fetch url again if domain is different from provided url or if
+        # no site data already provided.
+        if self.domain != self.url.strip("/") or not self.data:
+            logger.debug(
+                "Domain %s is different from URL %s. Fetching domain.",
+                self.domain,
+                self.url,
+            )
+            response = get_url(self.domain, get_timeout(), get_exceptions())
+            if not response or not response.text:
+                return
+            self.data = response.text
 
-        self.soup = create_soup(response.text)
+        if not self.soup:
+            self.soup = create_soup(self.data)
+
         self.site_url = self.find_site_url(self.soup, self.domain)
         self.site_name = self.find_site_name(self.soup)
         self.icon_url = self.find_site_icon_url(self.domain)
@@ -65,11 +77,10 @@ class SiteMeta:
         if not icon:
             send_url = url + "/favicon.ico"
             logger.debug("Trying url %s for favicon", send_url)
-            response = get_url(url, get_timeout(), get_exceptions())
-            if response:
+            response = get_url(send_url, get_timeout(), get_exceptions())
+            if response and response.status_code == 200:
                 logger.debug("Received url %s for favicon", response.url)
-                if response.status_code == 200:
-                    icon = response.url
+                icon = response.url
         return icon
 
     @staticmethod
@@ -94,6 +105,14 @@ class SiteMeta:
                     return name
             except AttributeError:
                 pass
+
+        try:
+            title = soup.find(name="title").text
+            if title:
+                return title
+        except AttributeError:
+            pass
+
         return ""
 
     @staticmethod
@@ -163,33 +182,89 @@ class SiteMeta:
 
         :return: List[str]
         """
+
+        site_feeds: Dict[str, List[str]] = {"WordPress": ["/feed"]}
+
         possible_urls: Set[str] = set()
         if not self.soup:
             return []
 
-        generator: str = ""
-        try:
-            generator = self.soup.find(name="meta", property="generator").get("content")
-        except AttributeError:
-            pass
-        if generator and isinstance(generator, str):
-            if "wordpress" in generator.lower():
-                possible_urls.update(WORDPRESS_URLS)
+        # generator: str = ""
+        # try:
+        #     generator = self.soup.find(name="meta", property="generator").get("content")
+        # except AttributeError:
+        #     pass
+        # if generator and isinstance(generator, str):
+        #     if "wordpress" in generator.lower():
+        #         possible_urls.update(WORDPRESS_URLS)
+        site_names: Set[str] = set()
+
+        metas = self.soup.find_all(name="meta")
+        site_names.update(self.check_meta(metas))
 
         links = self.soup.find_all(name="link")
-        def is_wordpress_link(links: list) -> bool:
-            for link in links:
-                try:
-                    if "wp-content" in link.get("href"):
-                        return True
-                except:
-                    pass
-        
-        if is_wordpress_link(links):
-            possible_urls.update(WORDPRESS_URLS)
+        site_names.update(self.check_links(links))
+
+        for name in site_names:
+            urls: dict = site_feeds.get(name)
+            if urls:
+                possible_urls.update(urls)
+
+        # def is_wordpress_link(links: list) -> bool:
+        #     for link in links:
+        #         if "wp-content" in link.get("href", ""):
+        #             return True
+        #     return False
+
+        # if is_wordpress_link(links):
+        #     possible_urls.update(WORDPRESS_URLS)
 
         # Return urls appended to the root domain to allow searching
         urls: List[str] = []
         for url in possible_urls:
             urls.append(self.domain + url)
         return urls
+
+    @staticmethod
+    def check_meta(metas: ResultSet) -> Set[str]:
+        """
+        Check site meta to find possible CMS values.
+
+        :param metas: ResultSet of Site Meta values
+        :return: Set of possible CMS names
+        """
+        meta_tests = {"generator": {"WordPress": "WordPress\s*(.*)"}}
+
+        results: Set[str] = set()
+
+        def get_meta_value(type: str, metas: ResultSet):
+            for meta in metas:
+                if type in meta.get("property", ""):
+                    yield meta.get("content")
+
+        for test_type, tests in meta_tests.items():
+            meta_values = list(get_meta_value(test_type, metas))
+            for meta_value in meta_values:
+                for site_name, pattern in tests.items():
+                    if re.search(pattern, meta_value, flags=re.I):
+                        results.add(site_name)
+
+        return results
+
+    @staticmethod
+    def check_links(links: ResultSet) -> Set[str]:
+        link_tests = {"WordPress": "/wp-content/"}
+
+        results: Set[str] = set()
+
+        def get_link_href(links: ResultSet):
+            for link in links:
+                yield link.get("href")
+
+        link_hrefs = list(get_link_href(links))
+        for site_name, pattern in link_tests.items():
+            for href in link_hrefs:
+                if re.search(pattern, href, flags=re.I):
+                    results.add(site_name)
+
+        return results

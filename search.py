@@ -32,14 +32,19 @@ from feedsearch import search as search_feeds
 @click.option(
     "--favicon/--no-favicon", default=False, help="Convert Favicon into Data Uri"
 )
-def search(url, checkall, info, parser, verbose, exceptions, timeout, favicon):
+@click.option(
+    "--urls/--no-urls",
+    default=False,
+    help="Return found Feeds as a list of URL strings instead of FeedInfo objects.",
+)
+def search(url, checkall, info, parser, verbose, exceptions, timeout, favicon, urls):
     if verbose:
         logger = logging.getLogger("feedsearch")
         logger.setLevel(logging.DEBUG)
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]"
         )
         ch.setFormatter(formatter)
         logger.addHandler(ch)
@@ -54,13 +59,21 @@ def search(url, checkall, info, parser, verbose, exceptions, timeout, favicon):
             exceptions=exceptions,
             timeout=timeout,
             favicon_data_uri=favicon,
+            as_urls=urls,
         )
         for feed in feeds:
-            print()
-            pprint(vars(feed))
+            if not urls:
+                pprint(vars(feed))
+                print()
+            else:
+                click.echo("{0}".format(feed))
+
+        return feeds
     except Exception as e:
         click.echo("Exception: {0}\n".format(e))
         click.echo(traceback.format_exc())
+
+    return []
 
 
 if __name__ == "__main__":

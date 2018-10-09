@@ -1,121 +1,22 @@
 import logging
 import time
-from typing import Tuple, List
+from typing import List, Tuple, Union
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
-
+from .feedfinder import FeedFinder
 from .feedinfo import FeedInfo
 from .lib import (
-    create_soup,
     coerce_url,
-    get_site_root,
     create_requests_session,
+    create_soup,
     default_timeout,
+    get_site_root,
     set_bs4_parser,
     timeit,
 )
-from .site_meta import SiteMeta
 from .url import URL
 
 logger = logging.getLogger(__name__)
-
-
-class FeedFinder:
-    def __init__(self, feed_info: bool = False, favicon_data_uri: bool = False) -> None:
-        self.feed_info: bool = feed_info
-        self.favicon_data_uri: bool = favicon_data_uri
-        self.soup: BeautifulSoup = None
-        self.site_meta: SiteMeta = None
-        self.feeds: list = []
-
-    def check_urls(self, urls: List[str]) -> List[FeedInfo]:
-        """
-        Check if a list of Urls contain feeds
-
-        :param urls: List of Url strings
-        :return: list
-        """
-        feeds = []
-        for url_str in urls:
-            url = URL(url_str)
-            if url.is_feed:
-                feed = self.create_feed_info(url)
-                feeds.append(feed)
-
-        return feeds
-
-    def create_feed_info(self, url: URL) -> FeedInfo:
-        """
-        Creates a FeedInfo object from a URL object
-
-        :param url: URL object
-        :return: FeedInfo
-        """
-        info = FeedInfo(url.url, content_type=url.content_type)
-
-        if self.feed_info:
-            info.get_info(data=url.data)
-
-            if self.site_meta:
-                info.add_site_info(
-                    self.site_meta.site_url,
-                    self.site_meta.site_name,
-                    self.site_meta.icon_url,
-                    self.site_meta.icon_data_uri,
-                )
-
-        return info
-
-    def search_links(self, url: str) -> List[FeedInfo]:
-        """
-        Search all links on a page for feeds
-
-        :param url: Url of the soup
-        :return: list
-        """
-        links: List[str] = []
-        for link in self.soup.find_all("link"):
-            if link.get("type") in [
-                "application/rss+xml",
-                "text/xml",
-                "application/atom+xml",
-                "application/x.atom+xml",
-                "application/x-atom+xml",
-                "application/json",
-            ]:
-                links.append(urljoin(url, link.get("href", "")))
-
-        return self.check_urls(links)
-
-    def search_a_tags(self) -> Tuple[List[str], List[str]]:
-        """
-        Search all 'a' tags on a page for feeds
-
-        :return: Tuple[list, list]
-        """
-        local, remote = [], []
-        for a in self.soup.find_all("a"):
-            href = a.get("href", None)
-            if href is None:
-                continue
-            if "://" not in href and URL.is_feed_url(href):
-                local.append(href)
-            if URL.is_feedlike_url(href):
-                remote.append(href)
-
-        return local, remote
-
-    def get_site_info(self, url: str) -> None:
-        """
-        Search for site metadata
-
-        :param url: Site Url
-        :return: None
-        """
-        if self.feed_info:
-            self.site_meta = SiteMeta(url)
-            self.site_meta.parse_site_info(self.favicon_data_uri)
 
 
 def search(
@@ -128,7 +29,8 @@ def search(
     parser: str = "html.parser",
     exceptions: bool = False,
     favicon_data_uri: bool = False,
-):
+    as_urls: bool = False,
+) -> Union[List[FeedInfo], List[str]]:
     """
     Search for RSS or ATOM feeds at a given URL
 
@@ -144,16 +46,21 @@ def search(
         attempt to keep searching. If True, will leave Requests exceptions
         uncaught to be handled externally.
     :param favicon_data_uri: Fetch Favicon and convert to Data Uri
+    :param as_urls: Return found Feeds as a list of URL strings instead
+        of FeedInfo objects
     :return: List of found feeds as FeedInfo objects.
              FeedInfo objects will always have a .url value.
     """
-
     # Wrap find_feeds in a Requests session
     with create_requests_session(user_agent, max_redirects, timeout, exceptions):
         # Set BeautifulSoup parser
         set_bs4_parser(parser)
         # Find feeds
-        return _find_feeds(url, check_all, info, favicon_data_uri)
+        feeds = _find_feeds(url, check_all, info, favicon_data_uri)
+        if as_urls:
+            return [f.url for f in feeds]
+        else:
+            return feeds
 
 
 @timeit
@@ -191,26 +98,27 @@ def _find_feeds(
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug("Searched url in %sms", search_time)
 
+    # If URL is valid, then get site info if feed_info is True
+    if found_url.is_valid:
+        if feed_info:
+            finder.get_site_info(found_url)
+    # Return nothing if there is no data from the URL
+    else:
+        return []
+
     # If URL is already a feed, create and return FeedInfo
     if found_url.is_feed:
-        finder.get_site_info(url)
         found = finder.create_feed_info(found_url)
         feeds.append(found)
         return feeds
-
-    # Return nothing if there is no data from the URL
-    if not found_url.data:
-        return []
-
-    # Get site metadata
-    finder.get_site_info(url)
 
     # Parse text with BeautifulSoup
     finder.soup = create_soup(found_url.data)
 
     # Search for <link> tags
     logger.debug("Looking for <link> tags.")
-    found_links = finder.search_links(found_url.url)
+    links = finder.search_links(found_url.url)
+    found_links = finder.check_urls(links)
     feeds.extend(found_links)
     logger.info("Found %s feed <link> tags.", len(found_links))
 
@@ -224,6 +132,8 @@ def _find_feeds(
     # Search for default CMS feeds.
     # We run this only if feeds are not already found in the <link> tags, as
     # any good CMS should advertise feeds in the site meta.
+    if not finder.site_meta:
+        finder.get_site_info(url)
     logger.debug("Looking for CMS feeds.")
     cms_urls = finder.site_meta.cms_feed_urls()
     found_cms = finder.check_urls(cms_urls)
