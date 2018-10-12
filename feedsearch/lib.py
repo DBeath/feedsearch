@@ -2,7 +2,7 @@ import functools
 import logging
 import time
 from contextlib import contextmanager
-from typing import Optional
+from typing import Optional, Union, Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 bs4_parser = "html.parser"
 
-default_timeout = (10.05, 30)
+default_timeout = 3.05
 
 
 def get_session():
@@ -63,7 +63,7 @@ def _user_agent() -> str:
 def create_requests_session(
     user_agent: str = "",
     max_redirects: int = 30,
-    timeout=default_timeout,
+    timeout: Union[float, Tuple[float, float]] = default_timeout,
     exceptions: bool = False,
 ):
     """
@@ -71,6 +71,7 @@ def create_requests_session(
 
     :param user_agent: User-Agent string
     :param max_redirects: Max number of redirects before failure
+    :param timeout: Request Timeout
     :param exceptions: If False, will gracefully handle Requests exceptions and attempt to keep searching.
                        If True, will leave Requests exceptions uncaught to be handled externally.
     :return: Requests session
@@ -101,7 +102,7 @@ def create_requests_session(
 def requests_session(
     user_agent: str = "",
     max_redirects: int = 30,
-    timeout=default_timeout,
+    timeout: Union[float, Tuple[float, float]] = default_timeout,
     exceptions: bool = False,
 ):
     """
@@ -109,6 +110,7 @@ def requests_session(
 
     :param user_agent: User Agent for requests
     :param max_redirects: Maximum number of redirects
+    :param timeout: Request Timeout
     :return: decorator function
     """
 
@@ -139,15 +141,18 @@ def set_bs4_parser(parser: str) -> None:
 
 
 def get_url(
-    url: str, timeout=None, exceptions: bool = False, **kwargs
+    url: str,
+    timeout: Union[float, Tuple[float, float]] = default_timeout,
+    exceptions: bool = False,
+    **kwargs,
 ) -> Optional[Response]:
     """
     Performs a GET request on a URL
 
     :param url: URL string
-    :param timeout: Optional Request Timeout
+    :param timeout: Request Timeout
     :param exceptions: If False, will gracefully handle Requests exceptions and attempt to keep searching.
-                       If True, will leave Requests exceptions uncaught to be handled externally.
+                       If True, will reraise Requests exceptions to be handled externally.
     :return: Requests Response object
     """
     timeout = timeout if timeout else get_timeout()
@@ -155,7 +160,8 @@ def get_url(
     logger.info("Fetching URL: %s", url)
     start_time = time.perf_counter()
     try:
-        response = get_session().get(url, timeout=timeout, **kwargs)
+        session = get_session()
+        response = session.get(url, timeout=timeout, **kwargs)
         response.raise_for_status()
     except RequestException as ex:
         logger.warning("RequestException while getting URL: %s, %s", url, str(ex))

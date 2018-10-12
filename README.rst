@@ -19,8 +19,9 @@ It was originally based on
 and subsequently maintained by
 `Aaron Swartz <http://en.wikipedia.org/wiki/Aaron_Swartz>`_ until his untimely death.
 
-The main differences with Feedfinder2 are that Feedsearch supports JSON feeds, and allows for 
-optional fetching of Feed and Site metadata.
+Feedsearch now differs a lot with Feedfinder2, in that Feedsearch supports JSON feeds, allows for 
+optional fetching of Feed and Site metadata, and optionally searches the content of internal linked pages
+and default CMS feed locations.
 
 Usage
 -----
@@ -84,16 +85,21 @@ If you only want the raw urls, then use a list comprehension on the result, or s
 In addition to the URL, the ``search`` function takes the following optional keyword arguments:
 
 - **info**: *bool*: Get Feed and Site Metadata. Defaults False.
-- **check_all**: *bool*: Check all <link> and <a> tags on page. Defaults False.
+- **check_all**: *bool*: Check all internally linked pages of <a> tags for feeds, and default CMS feeds.
+  Only checks one level down. Defaults False. May be very slow.
 - **user_agent**: *str*: User-Agent Header string. Defaults to Package name.
-- **timeout**: *int* or *tuple*: Timeout for each request in the search (not a timeout for the ``search``
-  method itself). Defaults to 30 seconds.
+- **timeout**: *float* or *tuple(float, float)*: Timeout for each request in the search (not a timeout for the ``search``
+  method itself). Defaults to 3 seconds. See
+  `Requests documentation <http://docs.python-requests.org/en/master/user/advanced/#timeouts>`_ for more info.
 - **max_redirects**: *int*: Maximum number of redirects for each request. Defaults to 30.
 - **parser**: *str*: BeautifulSoup parser for HTML parsing. Defaults to 'html.parser'.
 - **exceptions**: *bool*: If False, will gracefully handle Requests exceptions and attempt to keep searching. 
   If True, will leave Requests exceptions uncaught to be handled by the caller. Defaults False.
 - **favicon_data_uri**: *bool*: Convert Favicon to Data Uri. Defaults False.
 - **as_urls**: *bool*: Return found Feeds as a list of URL strings instead of FeedInfo objects.
+- **cms**: *bool*: Check default CMS feed location if no feeds already found and site is using a known CMS. Defaults True.
+- **discovery_only**: *bool*: Only search for RSS discovery tags (e.g. <link rel="alternate" href=...>). Defaults False.
+  Overridden by **check_all** if **check_all** is True.
 
 FeedInfo Values
 ---------------
@@ -115,3 +121,21 @@ FeedInfo objects may have the following values if *info* is *True*:
 - **url**: *str*: URL location of feed.
 - **version**: *str*: Feed version `XML values <https://pythonhosted.org/feedparser/version-detection.html>`_,
   or `JSON feed <https://jsonfeed.org/version/1>`_.
+
+
+Search Order
+------------
+
+Feedsearch searches for feeds in the following order:
+
+1. If the URL points directly to a feed, then return that feed.
+2. If **discovery_only** is True, search only <link rel="alternate"> tags. Return unless **check_all** is True.
+3. Search all <link> tags. Return if feeds are found and **check_all** is False.
+4. If **cms** or **check_all** is True, search for default CMS feeds if the site is using a known CMS.
+  Return if feeds are found and **check_all** is False.
+5. Search all <a> tags. Return if **check_all** is False.
+6. This point will only be reached if **check_all** is True.
+7. Fetch the content of all internally pointing <a> tags whose URL paths indicate they may contain feeds.
+  (e.g. /feed /rss /atom). All <link> tags and <a> tags of the content is searched, although not recusively.
+  Return if feeds are found. This step may be very slow, so be sure whether you want **check_all** enabled.
+8. If step 7 failed to find feeds, then as a last resort we make a few guesses for potential feed urls.

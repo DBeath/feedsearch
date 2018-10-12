@@ -1,34 +1,39 @@
 import logging
 from typing import List, Tuple, Union
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
 from .feedinfo import FeedInfo
 from .site_meta import SiteMeta
 from .url import URL
+from .lib import create_soup
 
 logger = logging.getLogger(__name__)
 
 
 class FeedFinder:
-    def __init__(self, feed_info: bool = False, favicon_data_uri: bool = False) -> None:
+    def __init__(
+        self, coerced_url: str, feed_info: bool = False, favicon_data_uri: bool = False
+    ) -> None:
         self.get_feed_info: bool = feed_info
         self.favicon_data_uri: bool = favicon_data_uri
         self.soup: BeautifulSoup = None
         self.site_meta: SiteMeta = None
         self.feeds: list = []
+        self.urls: List[URL] = []
+        self.coerced_url: str = coerced_url
 
     def check_urls(self, urls: List[str]) -> List[FeedInfo]:
         """
         Check if a list of Urls contain feeds
 
         :param urls: List of Url strings
-        :return: list
+        :return: List of FeedInfo objects
         """
         feeds = []
         for url_str in urls:
-            url = URL(url_str)
+            url = self.get_url(url_str)
             if url.is_feed:
                 feed = self.create_feed_info(url)
                 feeds.append(feed)
@@ -57,15 +62,21 @@ class FeedFinder:
 
         return info
 
-    def search_links(self, url: str) -> List[str]:
+    @staticmethod
+    def search_links(soup: BeautifulSoup, url: str, rel: bool = False) -> List[str]:
         """
         Search all links on a page for feeds
 
         :param url: Url of the soup
+        :param rel: If true, only search for RSS discovery type "alternate" links
         :return: list
         """
         links: List[str] = []
-        for link in self.soup.find_all("link"):
+        if rel:
+            link_tags = soup.find_all("link", rel="alternate")
+        else:
+            link_tags = soup.find_all("link")
+        for link in link_tags:
             if link.get("type") in [
                 "application/rss+xml",
                 "text/xml",
@@ -78,14 +89,15 @@ class FeedFinder:
 
         return links
 
-    def search_a_tags(self) -> Tuple[List[str], List[str]]:
+    @staticmethod
+    def search_a_tags(soup: BeautifulSoup) -> Tuple[List[str], List[str]]:
         """
         Search all 'a' tags on a page for feeds
 
         :return: Tuple[list, list]
         """
         local, remote = [], []
-        for a in self.soup.find_all("a"):
+        for a in soup.find_all("a"):
             href = a.get("href", None)
             if href is None:
                 continue
@@ -109,3 +121,62 @@ class FeedFinder:
             self.site_meta = SiteMeta(url.url, data=url.data)
         if self.site_meta:
             self.site_meta.parse_site_info(self.favicon_data_uri)
+
+    def get_url(self, url: Union[str, URL]) -> URL:
+        """
+        Return a unique URL object containing fetched URL data
+
+        :param url: URL string or URL object
+        :return: URL object
+        """
+        if isinstance(url, str):
+            if "://" not in url:
+                url = urljoin(self.coerced_url, url)
+            url = URL(url, immediate_get=False)
+        if url in self.urls:
+            url = self.urls[self.urls.index(url)]
+        else:
+            self.urls.append(url)
+        if not url.data:
+            url.get_is_feed(url.url)
+        return url
+
+    def internal_feedlike_urls(self) -> List[URL]:
+        """
+        Return a list of URLs that point to internal pages
+        which may contain feeds.
+
+        :return: List of URL objects
+        """
+        internal: List[URL] = []
+        parsed_coerced = urlparse(self.coerced_url)
+        for url in self.urls:
+            if not url.is_feed and url.fetched and url.feedlike_url:
+                parsed = urlparse(url.url)
+                # We want to check that the url is internal.
+                # The coerced netloc is likely to be less complete (i.e. missing www subdomain)
+                # than the netloc of the fetched url.
+                if parsed_coerced.netloc in parsed.netloc:
+                    internal.append(url)
+        return internal
+
+    def check_url_data(self, urls: List[URL]) -> List[FeedInfo]:
+        """
+        Check the data of each URL for links which may be feeds,
+        then check the links and return any found feeds.
+
+        :return: List of FeedInfo objects
+        """
+        found: List[FeedInfo] = []
+
+        for url in urls:
+            if not url.is_feed and url.data:
+                to_search: List[str] = []
+                url_soup = create_soup(url.data)
+                to_search.extend(self.search_links(url_soup, url.url))
+                local, remote = self.search_a_tags(url_soup)
+                to_search.extend(local)
+                to_search.extend(remote)
+                found.extend(self.check_urls(to_search))
+
+        return found

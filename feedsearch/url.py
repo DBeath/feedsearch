@@ -19,12 +19,17 @@ class URL:
         self.content_type: str = ""
         self.headers: dict = {}
         self.links: dict = {}
+        self.fetched: bool = False
+        self.feedlike_url: bool = self.is_feedlike_url(self.url)
 
-        if immediate_get:
+        if immediate_get and not self.fetched:
             self.get_is_feed(self.url)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.url!r})"
+
+    def __eq__(self, other):
+        return self.url == other.url
 
     @staticmethod
     def is_feed_url(url: str) -> bool:
@@ -89,6 +94,8 @@ class URL:
         :return: None
         """
         response = get_url(url, get_timeout(), get_exceptions())
+
+        self.fetched = True
 
         if not response or not response.text:
             logger.debug("Nothing found at %s", url)
