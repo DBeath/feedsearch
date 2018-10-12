@@ -50,7 +50,7 @@ class FeedFinder:
         info = FeedInfo(url.url, content_type=url.content_type)
 
         if self.get_feed_info:
-            info.get_info(data=url.data)
+            info.get_info(data=url.data, headers=url.headers)
 
             if self.site_meta:
                 info.add_site_info(

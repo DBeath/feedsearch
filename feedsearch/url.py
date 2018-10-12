@@ -69,21 +69,25 @@ class URL:
         return True
 
     @staticmethod
-    def is_feed_data(text: str) -> bool:
+    def is_feed_data(text: str, content_type: str) -> bool:
         """
         Return True if text string has valid feed beginning.
 
         :param text: Possible feed text
+        :param content_type: MimeType of text
         :return: bool
         """
         data = text.lower()
-        if data and data[:100].count("<html"):
+        if not data:
             return False
+        if data[:100].count("<html"):
+            return False
+        if "json" in content_type and data.count("jsonfeed.org"):
+            return True
         return bool(
             data.count("<rss")
             + data.count("<rdf")
             + data.count("<feed")
-            + data.count("jsonfeed.org")
         )
 
     def get_is_feed(self, url: str) -> None:
@@ -107,7 +111,7 @@ class URL:
         self.data = response.text
         self.headers = response.headers
         self.links = response.links
-        self.is_feed = self.is_feed_data(response.text)
+        self.is_feed = self.is_feed_data(response.text, self.content_type)
 
     @property
     def is_valid(self) -> bool:

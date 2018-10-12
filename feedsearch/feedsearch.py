@@ -20,24 +20,29 @@ logger = logging.getLogger(__name__)
 
 def search(
     url,
-    check_all: bool = False,
     info: bool = False,
+    check_all: bool = False,
+    cms: bool = True,
+    discovery_only: bool = False,
+    favicon_data_uri: bool = False,
+    as_urls: bool = False,
     timeout: Union[float, Tuple[float, float]] = default_timeout,
     user_agent: str = "",
     max_redirects: int = 30,
     parser: str = "html.parser",
     exceptions: bool = False,
-    favicon_data_uri: bool = False,
-    as_urls: bool = False,
-    cms: bool = True,
-    discovery_only: bool = False,
 ) -> Union[List[FeedInfo], List[str]]:
     """
     Search for RSS or ATOM feeds at a given URL
 
     :param url: URL
-    :param check_all: Check all <link> and <a> tags on page
     :param info: Get Feed and Site Metadata
+    :param check_all: Check all <link> and <a> tags on page
+    :param cms: Check default CMS feed location if site is using a known CMS.
+    :param discovery_only: Only search for RSS discovery tags (e.g. <link rel=\"alternate\" href=...>).
+    :param favicon_data_uri: Fetch Favicon and convert to Data Uri
+    :param as_urls: Return found Feeds as a list of URL strings instead
+        of FeedInfo objects
     :param timeout: Request timeout, either a float or (float, float).
         See Requests documentation: http://docs.python-requests.org/en/master/user/advanced/#timeouts
     :param user_agent: User-Agent Header string
@@ -47,20 +52,27 @@ def search(
     :param exceptions: If False, will gracefully handle Requests exceptions and
         attempt to keep searching. If True, will leave Requests exceptions
         uncaught to be handled externally.
-    :param favicon_data_uri: Fetch Favicon and convert to Data Uri
-    :param as_urls: Return found Feeds as a list of URL strings instead
-        of FeedInfo objects
-    :param cms: Check default CMS feed location if site is using a known CMS.
-    :param discovery_only: Only search for RSS discovery tags (e.g. <link rel=\"alternate\" href=...>).
     :return: List of found feeds as FeedInfo objects or URL strings (depending on "as_url" parameter).
         FeedInfo objects will always have a "url" value.
     """
     # Wrap find_feeds in a Requests session
-    with create_requests_session(user_agent, max_redirects, timeout, exceptions):
+    with create_requests_session(
+        user_agent=user_agent,
+        max_redirects=max_redirects,
+        timeout=timeout,
+        exceptions=exceptions,
+    ):
         # Set BeautifulSoup parser
         set_bs4_parser(parser)
         # Find feeds
-        feeds = _find_feeds(url, check_all, info, favicon_data_uri)
+        feeds = _find_feeds(
+            url,
+            feed_info=info,
+            check_all=check_all,
+            cms=cms,
+            discovery_only=discovery_only,
+            favicon_data_uri=favicon_data_uri,
+        )
         # If as_urls is true, return only URL strings
         if as_urls:
             return list(f.url for f in feeds)
@@ -73,9 +85,9 @@ def _find_feeds(
     url: str,
     feed_info: bool = False,
     check_all: bool = False,
-    favicon_data_uri: bool = False,
     cms: bool = True,
     discovery_only: bool = False,
+    favicon_data_uri: bool = False,
 ) -> List[FeedInfo]:
     """
     Finds feeds

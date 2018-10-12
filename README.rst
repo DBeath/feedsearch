@@ -106,7 +106,7 @@ FeedInfo Values
 
 FeedInfo objects may have the following values if *info* is *True*:
 
-- **bozo**: *int*: Set to 1 when feed is not well formed. Defaults 0.
+- **bozo**: *int*: Set to 1 when feed data is not well formed or may not be a feed. Defaults 0.
 - **content_type**: *str*: Content-Type value of the returned feed.
 - **description**: *str*: Feed description.
 - **favicon**: *str*: Url of site Favicon.

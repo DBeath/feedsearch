@@ -65,15 +65,15 @@ def search(
     try:
         feeds = search_feeds(
             url,
-            check_all=all,
             info=info,
-            parser=parser,
-            exceptions=exceptions,
-            timeout=timeout,
-            favicon_data_uri=favicon,
-            as_urls=urls,
+            check_all=all,
             cms=cms,
             discovery_only=discovery,
+            favicon_data_uri=favicon,
+            as_urls=urls,
+            parser=parser,
+            exceptions=exceptions,
+            timeout=timeout
         )
         click.echo()
         for feed in feeds:
