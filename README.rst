@@ -131,11 +131,8 @@ Feedsearch searches for feeds in the following order:
 1. If the URL points directly to a feed, then return that feed.
 2. If **discovery_only** is True, search only <link rel="alternate"> tags. Return unless **check_all** is True.
 3. Search all <link> tags. Return if feeds are found and **check_all** is False.
-4. If **cms** or **check_all** is True, search for default CMS feeds if the site is using a known CMS.
-  Return if feeds are found and **check_all** is False.
+4. If **cms** or **check_all** is True, search for default CMS feeds if the site is using a known CMS. Return if feeds are found and **check_all** is False.
 5. Search all <a> tags. Return if **check_all** is False.
 6. This point will only be reached if **check_all** is True.
-7. Fetch the content of all internally pointing <a> tags whose URL paths indicate they may contain feeds.
-  (e.g. /feed /rss /atom). All <link> tags and <a> tags of the content is searched, although not recusively.
-  Return if feeds are found. This step may be very slow, so be sure whether you want **check_all** enabled.
+7. Fetch the content of all internally pointing <a> tags whose URL paths indicate they may contain feeds. (e.g. /feed /rss /atom). All <link> tags and <a> tags of the content are searched, although not recusively. Return if feeds are found. This step may be very slow, so be sure whether you want **check_all** enabled.
 8. If step 7 failed to find feeds, then as a last resort we make a few guesses for potential feed urls.
