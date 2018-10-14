@@ -13,7 +13,10 @@ from .lib import (
     get_site_root,
     set_bs4_parser,
     timeit,
+    get_exceptions,
+    set_exceptions
 )
+from requests import ReadTimeout
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +103,7 @@ def _find_feeds(
     :param discovery_only: Only search for RSS discovery tags (e.g. <link rel=\"alternate\" href=...>).
     :return: List of found feeds as FeedInfo objects.
     """
-    # Format the URL properly.
+    # Format the URL properly. Use HTTPS
     coerced_url: str = coerce_url(url)
 
     # Create Feedfinder
@@ -117,13 +120,36 @@ def _find_feeds(
     logger.info("Finding feeds at URL: %s", coerced_url)
 
     # Get URL and check if feed
-    found_url = finder.get_url(coerced_url)
+    found_url = None
+
+    # If the Caller provided an explicit HTTPS URL or asked for exceptions
+    # to be raised, then make the first fetch without explicit exception
+    # handling, as we don't want to retry with HTTP only.
+    if url.startswith("https://") or get_exceptions():
+        found_url = finder.get_url(coerced_url)
+    # Else, we perform the fetch with exception handling, so we can retry
+    # with an HTTP URL if we had a ReadTimeout using HTTPS.
+    else:
+        try:
+            # Set context to raise RequestExceptions on first fetch.
+            set_exceptions(True)
+            found_url = finder.get_url(coerced_url)
+        except ReadTimeout as ex:
+            # Set Local Context exception settings back to Caller provided settings.
+            set_exceptions(False)
+            # Coerce URL with HTTP instead of HTTPS
+            coerced_url = coerce_url(url, https=False)
+            finder.coerced_url = coerced_url
+            found_url = finder.get_url(coerced_url)
+        finally:
+            # Always set Local Context exception settings back to Caller provided settings.
+            set_exceptions(False)
 
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug("Searched url in %sms", search_time)
 
     # If URL is valid, then get site info if feed_info is True
-    if found_url.is_valid:
+    if found_url and found_url.is_valid:
         if feed_info:
             finder.get_site_info(found_url)
     # Return nothing if there is no data from the URL

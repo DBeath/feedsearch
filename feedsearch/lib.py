@@ -50,6 +50,15 @@ def get_exceptions() -> bool:
     return getattr(LOCAL_CONTEXT, "exceptions", False)
 
 
+def set_exceptions(value: bool = False) -> None:
+    """
+    Set the exception hadnling settings for the current local context.
+
+    :return: None
+    """
+    setattr(LOCAL_CONTEXT, "exceptions", value)
+
+
 def _user_agent() -> str:
     """
     Return User-Agent string
@@ -184,20 +193,24 @@ def create_soup(text: str) -> BeautifulSoup:
     return BeautifulSoup(text, bs4_parser)
 
 
-def coerce_url(url: str) -> str:
+def coerce_url(url: str, https: bool=True) -> str:
     """
     Coerce URL to valid format
 
     :param url: URL
+    :param https: Force https if no scheme in url
     :return: str
     """
     url.strip()
     if url.startswith("feed://"):
-        return url_fix("http://{0}".format(url[7:]))
+        return url_fix(f"http://{url[7:]}")
     for proto in ["http://", "https://"]:
         if url.startswith(proto):
             return url_fix(url)
-    return url_fix("http://{0}".format(url))
+    if https:
+        return url_fix(f"https://{url}")
+    else:
+        return url_fix(f"http://{url}")
 
 
 def get_site_root(url: str) -> str:
