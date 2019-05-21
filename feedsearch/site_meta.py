@@ -6,7 +6,7 @@ from typing import List, Set, Dict, Any
 from bs4 import BeautifulSoup, ResultSet
 from werkzeug.urls import url_parse
 
-from .lib import get_url, coerce_url, create_soup, get_timeout, get_exceptions
+from .lib import get_url_async, coerce_url, create_soup, get_timeout, get_exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class SiteMeta:
         self.icon_data_uri: str = ""
         self.domain: str = ""
 
-    def parse_site_info(self, favicon_data_uri: bool = False):
+    async def parse_site_info_async(self, favicon_data_uri: bool = False):
         """
         Finds Site Info from root domain of site
 
@@ -41,7 +41,7 @@ class SiteMeta:
                 self.domain,
                 self.url,
             )
-            response = get_url(self.domain, get_timeout(), get_exceptions())
+            response = await get_url_async(self.domain, get_timeout(), get_exceptions())
             if not response or not response.text:
                 return
             self.data = response.text
@@ -51,12 +51,12 @@ class SiteMeta:
 
         self.site_url = self.find_site_url(self.soup, self.domain)
         self.site_name = self.find_site_name(self.soup)
-        self.icon_url = self.find_site_icon_url(self.domain)
+        self.icon_url = await self.find_site_icon_url_async(self.domain)
 
         if favicon_data_uri and self.icon_url:
-            self.icon_data_uri = self.create_data_uri(self.icon_url)
+            self.icon_data_uri = await self.create_data_uri_async(self.icon_url)
 
-    def find_site_icon_url(self, url: str) -> str:
+    async def find_site_icon_url_async(self, url: str) -> str:
         """
         Attempts to find Site Favicon
 
@@ -77,7 +77,7 @@ class SiteMeta:
         if not icon:
             send_url = url + "/favicon.ico"
             logger.debug("Trying url %s for favicon", send_url)
-            response = get_url(send_url, get_timeout(), get_exceptions())
+            response = await get_url_async(send_url, get_timeout(), get_exceptions())
             if response and response.status_code == 200:
                 logger.debug("Received url %s for favicon", response.url)
                 icon = response.url
@@ -153,14 +153,14 @@ class SiteMeta:
         return domain
 
     @staticmethod
-    def create_data_uri(img_url: str) -> str:
+    async def create_data_uri_async(img_url: str) -> str:
         """
         Creates a Data Uri for a Favicon
 
         :param img_url: Url of Favicon
         :return: str
         """
-        response = get_url(img_url, get_timeout(), get_exceptions(), stream=True)
+        response = await get_url_async(img_url, get_timeout(), get_exceptions(), stream=True)
         if not response or int(response.headers["content-length"]) > 500_000:
             response.close()
             return ""
@@ -206,7 +206,7 @@ class SiteMeta:
         site_names.update(self.check_links(links))
 
         for name in site_names:
-            urls: dict = site_feeds.get(name)
+            urls = site_feeds.get(name)
             if urls:
                 possible_urls.update(urls)
 

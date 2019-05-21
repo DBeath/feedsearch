@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import List, Tuple, Union
 from urllib.parse import urljoin, urlparse
@@ -5,9 +6,9 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from .feedinfo import FeedInfo
+from .lib import create_soup
 from .site_meta import SiteMeta
 from .url import URL
-from .lib import create_soup
 
 logger = logging.getLogger(__name__)
 
@@ -24,23 +25,27 @@ class FeedFinder:
         self.urls: List[URL] = []
         self.coerced_url: str = coerced_url
 
-    def check_urls(self, urls: List[str]) -> List[FeedInfo]:
+    async def check_urls_async(self, urls: List[str]) -> List[FeedInfo]:
         """
         Check if a list of Urls contain feeds
 
         :param urls: List of Url strings
         :return: List of FeedInfo objects
         """
-        feeds = []
-        for url_str in urls:
-            url = self.get_url(url_str)
-            if url.is_feed:
-                feed = self.create_feed_info(url)
-                feeds.append(feed)
+        async def get_feed_async(url: str) -> FeedInfo:
+            url_obj = await self.get_url_async(url)
+            if url_obj.is_feed:
+                feed = await self.create_feed_info_async(url_obj)
+                return feed
 
+        tasks = []
+        for url_str in urls:
+            tasks.append(get_feed_async(url_str))
+
+        feeds = await asyncio.gather(*tasks)
         return feeds
 
-    def create_feed_info(self, url: URL) -> FeedInfo:
+    async def create_feed_info_async(self, url: URL) -> FeedInfo:
         """
         Creates a FeedInfo object from a URL object
 
@@ -50,7 +55,7 @@ class FeedFinder:
         info = FeedInfo(url.url, content_type=url.content_type)
 
         if self.get_feed_info:
-            info.get_info(data=url.data, headers=url.headers)
+            await info.get_info_async(data=url.data, headers=url.headers)
 
             if self.site_meta:
                 info.add_site_info(
@@ -85,7 +90,8 @@ class FeedFinder:
                 "application/x-atom+xml",
                 "application/json",
             ]:
-                links.append(urljoin(url, link.get("href", "")))
+                href = link.get("href", "")
+                links.append(urljoin(url, href))
 
         return links
 
@@ -108,7 +114,7 @@ class FeedFinder:
 
         return local, remote
 
-    def get_site_info(self, url: Union[str, URL]) -> None:
+    async def get_site_info_async(self, url: Union[str, URL]) -> None:
         """
         Search for site metadata
 
@@ -120,9 +126,9 @@ class FeedFinder:
         elif isinstance(url, URL):
             self.site_meta = SiteMeta(url.url, data=url.data)
         if self.site_meta:
-            self.site_meta.parse_site_info(self.favicon_data_uri)
+            await self.site_meta.parse_site_info_async(self.favicon_data_uri)
 
-    def get_url(self, url: Union[str, URL]) -> URL:
+    async def get_url_async(self, url: Union[str, URL]) -> URL:
         """
         Return a unique URL object containing fetched URL data
 
@@ -138,7 +144,7 @@ class FeedFinder:
         else:
             self.urls.append(url)
         if not url.data:
-            url.get_is_feed(url.url)
+            await url.get_is_feed(url.url)
         return url
 
     def internal_feedlike_urls(self) -> List[URL]:
@@ -160,15 +166,15 @@ class FeedFinder:
                     internal.append(url)
         return internal
 
-    def check_url_data(self, urls: List[URL]) -> List[FeedInfo]:
+    async def check_url_data_async(self, urls: List[URL]) -> List[FeedInfo]:
         """
         Check the data of each URL for links which may be feeds,
         then check the links and return any found feeds.
 
         :return: List of FeedInfo objects
         """
-        found: List[FeedInfo] = []
 
+        tasks = []
         for url in urls:
             if not url.is_feed and url.data:
                 to_search: List[str] = []
@@ -177,6 +183,7 @@ class FeedFinder:
                 local, remote = self.search_a_tags(url_soup)
                 to_search.extend(local)
                 to_search.extend(remote)
-                found.extend(self.check_urls(to_search))
+                tasks.append(self.check_urls_async(to_search))
 
+        found: List[FeedInfo] = await asyncio.gather(*tasks)
         return found

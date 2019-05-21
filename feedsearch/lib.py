@@ -1,10 +1,10 @@
 import functools
 import logging
 import time
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from typing import Optional, Union, Tuple
 
-import requests
+import aiohttp
 from bs4 import BeautifulSoup
 from requests import Response
 from requests.exceptions import RequestException
@@ -29,7 +29,7 @@ def get_session():
 
     :return: Requests Session
     """
-    return getattr(LOCAL_CONTEXT, "session", create_requests_session())
+    return getattr(LOCAL_CONTEXT, "session", create_requests_session_async())
 
 
 def get_timeout():
@@ -68,11 +68,11 @@ def _user_agent() -> str:
     return f"FeedSearch/{__version__} (https://github.com/DBeath/feedsearch)"
 
 
-@contextmanager
-def create_requests_session(
+@asynccontextmanager
+async def create_requests_session_async(
     user_agent: str = "",
     max_redirects: int = 30,
-    timeout: Union[float, Tuple[float, float]] = default_timeout,
+    timeout=default_timeout,
     exceptions: bool = False,
 ):
     """
@@ -85,14 +85,16 @@ def create_requests_session(
                        If True, will leave Requests exceptions uncaught to be handled externally.
     :return: Requests session
     """
-    # Create a request session
-    session = requests.session()
+
+    if timeout:
+        timeout = aiohttp.ClientTimeout(total=timeout)
 
     # Set User-Agent header
     user_agent = user_agent if user_agent else _user_agent()
-    session.headers.update({"User-Agent": user_agent})
+    headers = {"User-Agent": user_agent}
 
-    session.max_redirects = max_redirects
+    # Create a request session
+    session = aiohttp.ClientSession(headers=headers)
 
     # Add request session to local context
     setattr(LOCAL_CONTEXT, "session", session)
@@ -102,7 +104,7 @@ def create_requests_session(
     yield session
 
     # Close request session
-    session.close()
+    await session.close()
 
     # Clean up local context
     release_local(LOCAL_CONTEXT)
@@ -126,7 +128,7 @@ def requests_session(
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            with create_requests_session(
+            with create_requests_session_async(
                 user_agent, max_redirects, timeout, exceptions
             ):
                 # Call wrapped function
@@ -149,7 +151,7 @@ def set_bs4_parser(parser: str) -> None:
         bs4_parser = parser
 
 
-def get_url(
+async def get_url_async(
     url: str,
     timeout: Union[float, Tuple[float, float]] = default_timeout,
     exceptions: bool = False,
@@ -170,10 +172,15 @@ def get_url(
     start_time = time.perf_counter()
     try:
         session = get_session()
-        response = session.get(url, timeout=timeout, **kwargs)
+        response = await session.get(url, timeout=timeout, **kwargs)
         response.raise_for_status()
     except RequestException as ex:
         logger.warning("RequestException while getting URL: %s, %s", url, str(ex))
+        if exceptions:
+            raise
+        return None
+    except Exception as ex:
+        logger.warning("Exception while getting URL: %s, %s", url, str(ex))
         if exceptions:
             raise
         return None
@@ -228,10 +235,10 @@ def timeit(func):
     """
 
     @functools.wraps(func)
-    def wrap(*args, **kwargs):
+    async def wrap(*args, **kwargs):
         start = time.perf_counter()
 
-        result = func(*args, **kwargs)
+        result = await func(*args, **kwargs)
 
         dur = int((time.perf_counter() - start) * 1000)
 

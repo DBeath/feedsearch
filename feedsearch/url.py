@@ -1,13 +1,13 @@
 import logging
 from typing import Any
 
-from .lib import get_url, get_timeout, get_exceptions
+from .lib import get_url_async, get_timeout, get_exceptions
 
 logger = logging.getLogger(__name__)
 
 
 class URL:
-    def __init__(self, url: str, data: Any = None, immediate_get: bool = True) -> None:
+    def __init__(self, url: str, data: Any = None, immediate_get: bool = False) -> None:
         """
         Initialise URL object and immediately fetch URL to check if feed.
 
@@ -90,14 +90,14 @@ class URL:
             + data.count("<feed")
         )
 
-    def get_is_feed(self, url: str) -> None:
+    async def get_is_feed(self, url: str) -> None:
         """
         Gets a URL and checks if it might be a feed.
 
         :param url: URL string
         :return: None
         """
-        response = get_url(url, get_timeout(), get_exceptions())
+        response = await get_url_async(url, get_timeout(), get_exceptions())
 
         self.fetched = True
 
@@ -105,13 +105,13 @@ class URL:
             logger.debug("Nothing found at %s", url)
             return
 
-        self.url = response.url
+        self.url = str(response.url)
         self.content_type = response.headers.get("content-type")
 
-        self.data = response.text
+        self.data = await response.text()
         self.headers = response.headers
         self.links = response.links
-        self.is_feed = self.is_feed_data(response.text, self.content_type)
+        self.is_feed = self.is_feed_data(self.data, self.content_type)
 
     @property
     def is_valid(self) -> bool:

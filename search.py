@@ -1,10 +1,22 @@
 import logging
 import traceback
 from pprint import pprint
+import asyncio
 
 import click
 
-from feedsearch import search as search_feeds
+from feedsearch import search_async as search_feeds
+
+from functools import update_wrapper
+
+
+def coro(f):
+    f = asyncio.coroutine(f)
+
+    def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(f(*args, **kwargs))
+    return update_wrapper(wrapper, f)
 
 
 @click.command()
@@ -47,7 +59,8 @@ from feedsearch import search as search_feeds
     default=False,
     help='Only search for RSS discovery tags (e.g. <link rel="alternate" href=...>).',
 )
-def search(
+@coro
+async def search(
     url, all, info, parser, verbose, exceptions, timeout, favicon, urls, cms, discovery
 ):
     if verbose:
@@ -63,7 +76,7 @@ def search(
 
     click.echo("\nSearching URL {0}\n".format(url))
     try:
-        feeds = search_feeds(
+        feeds = await search_feeds(
             url,
             info=info,
             check_all=all,
@@ -92,4 +105,5 @@ def search(
 
 
 if __name__ == "__main__":
-    search()
+    #search()
+    asyncio.run(search())

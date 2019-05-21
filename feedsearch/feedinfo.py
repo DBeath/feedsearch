@@ -53,7 +53,7 @@ class FeedInfo:
     def __hash__(self):
         return hash(self.url)
 
-    def get_info(self, data: Any = None, headers: dict = None) -> None:
+    async def get_info_async(self, data: Any = None, headers: dict = None) -> None:
         """
         Get Feed info from data.
 
@@ -67,8 +67,10 @@ class FeedInfo:
         url_object = None
         if not data:
             url_object = URL(self.url)
+            if not url_object.fetched:
+                await url_object.get_is_feed(url_object.url)
             if url_object.is_feed:
-                self.update_from_url(
+                await self.update_from_url_async(
                     url_object.url,
                     url_object.content_type,
                     url_object.data,
@@ -88,14 +90,14 @@ class FeedInfo:
             json_data = json.loads(data)
             logger.debug("%s data is JSON", self)
             self.content_type = "application/json"
-            self.parse_json(json_data)
+            await self.parse_json_async(json_data)
             return
         except json.JSONDecodeError:
             pass
 
-        self.parse_xml(data)
+        await self.parse_xml_async(data)
 
-    def parse_xml(self, data: str) -> None:
+    async def parse_xml_async(self, data: str) -> None:
         """
         Get info from XML (RSS or ATOM) feed.
         :param data: XML string
@@ -122,7 +124,7 @@ class FeedInfo:
         self.title = self.feed_title(feed)
         self.description = self.feed_description(feed)
 
-    def parse_json(self, data: dict) -> None:
+    async def parse_json_async(self, data: dict) -> None:
         """
         Get info from JSON feed.
 
@@ -139,7 +141,7 @@ class FeedInfo:
         if feed_url and feed_url != self.url:
             url = URL(feed_url)
             if url.is_feed:
-                self.update_from_url(url.url, url.content_type, url.data)
+                await self.update_from_url_async(url.url, url.content_type, url.data)
                 return
 
         self.title = data.get("title")
@@ -219,8 +221,8 @@ class FeedInfo:
         Returns a tuple containing the hub url and the self url for
         a parsed feed.
 
-        :param parsed: An RSS feed parsed by feedparser
-        :type parsed: dict
+        :param feed: An RSS feed parsed by feedparser
+        :type feed: dict
         :return: tuple
         """
         links = feed.get("links", [])
@@ -243,7 +245,7 @@ class FeedInfo:
         self.favicon = icon
         self.favicon_data_uri = icon_data_uri
 
-    def update_from_url(
+    async def update_from_url_async(
         self, url: str, content_type: str = "", data: Any = None, headers: dict = None
     ) -> None:
         """
@@ -257,7 +259,7 @@ class FeedInfo:
         """
         self.url = url
         self.content_type = content_type
-        self.get_info(data, headers)
+        await self.get_info_async(data, headers)
 
     @classmethod
     def create_from_url(cls, url: str, content_type: str = ""):

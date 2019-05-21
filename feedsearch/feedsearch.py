@@ -3,11 +3,13 @@ import time
 from typing import List, Tuple, Union
 from urllib.parse import urljoin
 
+from requests import ReadTimeout
+
 from .feedfinder import FeedFinder
 from .feedinfo import FeedInfo
 from .lib import (
     coerce_url,
-    create_requests_session,
+    create_requests_session_async,
     create_soup,
     default_timeout,
     get_site_root,
@@ -16,12 +18,11 @@ from .lib import (
     get_exceptions,
     set_exceptions
 )
-from requests import ReadTimeout
 
 logger = logging.getLogger(__name__)
 
 
-def search(
+async def search_async(
     url,
     info: bool = False,
     check_all: bool = False,
@@ -59,7 +60,7 @@ def search(
         FeedInfo objects will always have a "url" value.
     """
     # Wrap find_feeds in a Requests session
-    with create_requests_session(
+    async with create_requests_session_async(
         user_agent=user_agent,
         max_redirects=max_redirects,
         timeout=timeout,
@@ -68,7 +69,7 @@ def search(
         # Set BeautifulSoup parser
         set_bs4_parser(parser)
         # Find feeds
-        feeds = _find_feeds(
+        feeds = await _find_feeds_async(
             url,
             feed_info=info,
             check_all=check_all,
@@ -84,7 +85,7 @@ def search(
 
 
 @timeit
-def _find_feeds(
+async def _find_feeds_async(
     url: str,
     feed_info: bool = False,
     check_all: bool = False,
@@ -126,21 +127,21 @@ def _find_feeds(
     # to be raised, then make the first fetch without explicit exception
     # handling, as we don't want to retry with HTTP only.
     if url.startswith("https://") or get_exceptions():
-        found_url = finder.get_url(coerced_url)
+        found_url = await finder.get_url_async(coerced_url)
     # Else, we perform the fetch with exception handling, so we can retry
     # with an HTTP URL if we had a ReadTimeout using HTTPS.
     else:
         try:
             # Set context to raise RequestExceptions on first fetch.
             set_exceptions(True)
-            found_url = finder.get_url(coerced_url)
+            found_url = await finder.get_url_async(coerced_url)
         except ReadTimeout as ex:
             # Set Local Context exception settings back to Caller provided settings.
             set_exceptions(False)
             # Coerce URL with HTTP instead of HTTPS
             coerced_url = coerce_url(url, https=False)
             finder.coerced_url = coerced_url
-            found_url = finder.get_url(coerced_url)
+            found_url = await finder.get_url_async(coerced_url)
         finally:
             # Always set Local Context exception settings back to Caller provided settings.
             set_exceptions(False)
@@ -151,14 +152,14 @@ def _find_feeds(
     # If URL is valid, then get site info if feed_info is True
     if found_url and found_url.is_valid:
         if feed_info:
-            finder.get_site_info(found_url)
+            await finder.get_site_info_async(found_url)
     # Return nothing if there is no data from the URL
     else:
         return []
 
     # If URL is already a feed, create and return FeedInfo
     if found_url.is_feed:
-        found = finder.create_feed_info(found_url)
+        found = await finder.create_feed_info_async(found_url)
         feeds.append(found)
         return feeds
 
@@ -169,7 +170,7 @@ def _find_feeds(
     if discovery_only and not check_all:
         logger.debug('Looking for <link rel="alternate"> tags.')
         links = finder.search_links(finder.soup, found_url.url)
-        found_links = finder.check_urls(links)
+        found_links = await finder.check_urls_async(links)
         feeds.extend(found_links)
         logger.info('Found %s feed <link rel="alternate" > tags.', len(found_links))
         return sort_urls(feeds, url)
@@ -177,7 +178,7 @@ def _find_feeds(
     # Search for <link> tags
     logger.debug("Looking for <link> tags.")
     links = finder.search_links(finder.soup, found_url.url)
-    found_links = finder.check_urls(links)
+    found_links = await finder.check_urls_async(links)
     feeds.extend(found_links)
     logger.info("Found %s feed <link> tags.", len(found_links))
 
@@ -191,10 +192,10 @@ def _find_feeds(
     # Search for default CMS feeds.
     if cms or check_all:
         if not finder.site_meta:
-            finder.get_site_info(coerced_url)
+            await finder.get_site_info_async(coerced_url)
         logger.debug("Looking for CMS feeds.")
         cms_urls = finder.site_meta.cms_feed_urls()
-        found_cms = finder.check_urls(cms_urls)
+        found_cms = await finder.check_urls_async(cms_urls)
         logger.info("Found %s CMS feeds.", len(found_cms))
         feeds.extend(found_cms)
 
@@ -208,15 +209,12 @@ def _find_feeds(
 
     # Check the local URLs.
     local: list = [urljoin(coerced_url, l) for l in local]
-    found_local = finder.check_urls(local)
-    feeds.extend(found_local)
-    logger.info("Found %s local <a> links to feeds.", len(found_local))
-
     # Check the remote URLs.
     remote: list = [urljoin(coerced_url, l) for l in remote]
-    found_remote = finder.check_urls(remote)
-    feeds.extend(found_remote)
-    logger.info("Found %s remote <a> links to feeds.", len(found_remote))
+    hrefs = local + remote
+    found_hrefs = await finder.check_urls_async(hrefs)
+    feeds.extend(found_hrefs)
+    logger.info("Found %s <a> links to feeds.", len(found_hrefs))
 
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug("Searched <a> links in %sms", search_time)
@@ -227,7 +225,7 @@ def _find_feeds(
 
     # Check all possible internal urls that may point to a feed page.
     internal = finder.internal_feedlike_urls()
-    found_internal = finder.check_url_data(internal)
+    found_internal = await finder.check_url_data_async(internal)
     feeds.extend(found_internal)
 
     search_time = int((time.perf_counter() - start_time) * 1000)
@@ -248,7 +246,7 @@ def _find_feeds(
         "index.json",
     ]
     urls = list(urljoin(coerced_url, f) for f in fns)
-    found_guessed = finder.check_urls(urls)
+    found_guessed = await finder.check_urls_async(urls)
     feeds.extend(found_guessed)
     logger.info("Found %s guessed links to feeds.", len(found_guessed))
 
