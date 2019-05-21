@@ -297,6 +297,7 @@ def sort_urls(feeds: List[FeedInfo], original_url: str = "") -> List[FeedInfo]:
     :param original_url: Searched Url
     :return: List of FeedInfo objects
     """
+    feeds = [f for f in feeds if isinstance(f, FeedInfo)]
     for feed in feeds:
         feed.score = url_feed_score(feed.url, original_url)
     sorted_urls = sorted(list(set(feeds)), key=lambda x: x.score, reverse=True)

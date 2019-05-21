@@ -23,6 +23,7 @@ class FeedFinder:
         self.site_meta: SiteMeta = None
         self.feeds: list = []
         self.urls: List[URL] = []
+        self.seen_urls: List[str] = []
         self.coerced_url: str = coerced_url
 
     async def check_urls_async(self, urls: List[str]) -> List[FeedInfo]:
@@ -40,9 +41,13 @@ class FeedFinder:
 
         tasks = []
         for url_str in urls:
-            tasks.append(get_feed_async(url_str))
+            if url_str not in self.seen_urls:
+                self.seen_urls.append(url_str)
+                tasks.append(get_feed_async(url_str))
 
+        logger.debug("FeedInfo Tasks: %s", len(tasks))
         feeds = await asyncio.gather(*tasks)
+        feeds = [f for f in feeds if isinstance(f, FeedInfo)]
         return feeds
 
     async def create_feed_info_async(self, url: URL) -> FeedInfo:
@@ -185,5 +190,8 @@ class FeedFinder:
                 to_search.extend(remote)
                 tasks.append(self.check_urls_async(to_search))
 
-        found: List[FeedInfo] = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks)
+        found: List[FeedInfo] = []
+        for feeds in results:
+            found.extend([f for f in feeds if isinstance(f, FeedInfo)])
         return found

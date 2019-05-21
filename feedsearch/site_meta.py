@@ -44,7 +44,7 @@ class SiteMeta:
             response = await get_url_async(self.domain, get_timeout(), get_exceptions())
             if not response or not response.text:
                 return
-            self.data = response.text
+            self.data = await response.text()
 
         if not self.soup:
             self.soup = create_soup(self.data)
