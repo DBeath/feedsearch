@@ -13,20 +13,20 @@ class URL:
 
         :param url: URL string
         """
-        self.url: str = url
-        self.data: Any = data
-        self.is_feed: bool = False
-        self.content_type: str = ""
-        self.headers: dict = {}
-        self.links: dict = {}
-        self.fetched: bool = False
-        self.feedlike_url: bool = self.is_feedlike_url(self.url)
+        self.url = url  # type: str
+        self.data = data  # type: Any
+        self.is_feed = False  # type: bool
+        self.content_type = ""  # type: str
+        self.headers = {}  # type: dict
+        self.links = {}  # type: dict
+        self.fetched = False  # type: bool
+        self.feedlike_url = self.is_feedlike_url(self.url)  # type: bool
 
         if immediate_get and not self.fetched:
             self.get_is_feed(self.url)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.url!r})"
+        return "{0}({1})".format(self.__class__.__name__, self.url.__repr__)
 
     def __eq__(self, other):
         return self.url == other.url

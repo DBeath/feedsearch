@@ -16,14 +16,14 @@ WORDPRESS_URLS = ["/feed"]
 
 class SiteMeta:
     def __init__(self, url: str, data: Any = None, soup: BeautifulSoup = None) -> None:
-        self.url: str = url
-        self.data: Any = data
-        self.soup: BeautifulSoup = soup
-        self.site_url: str = ""
-        self.site_name: str = ""
-        self.icon_url: str = ""
-        self.icon_data_uri: str = ""
-        self.domain: str = ""
+        self.url = url  # type: str
+        self.data = data  # type: Any
+        self.soup = soup  # type: BeautifulSoup
+        self.site_url = ""  # type: str
+        self.site_name = ""  # type: str
+        self.icon_url = ""  # type: str
+        self.icon_data_uri = ""  # type: str
+        self.domain = ""  # type: str
 
     def parse_site_info(self, favicon_data_uri: bool = False):
         """
@@ -149,7 +149,7 @@ class SiteMeta:
         """
         url = coerce_url(url)
         parsed = url_parse(url)
-        domain = f"{parsed.scheme}://{parsed.netloc}"
+        domain = "{0}://{1}".format(parsed.scheme, parsed.netloc)
         return domain
 
     @staticmethod
@@ -161,7 +161,7 @@ class SiteMeta:
         :return: str
         """
         response = get_url(img_url, get_timeout(), get_exceptions(), stream=True)
-        if not response or int(response.headers["content-length"]) > 500_000:
+        if not response or int(response.headers["content-length"]) > (1024 * 1024):
             response.close()
             return ""
 
@@ -183,21 +183,13 @@ class SiteMeta:
         :return: List[str]
         """
 
-        site_feeds: Dict[str, List[str]] = {"WordPress": ["/feed"]}
+        site_feeds = {"WordPress": ["/feed"]}  # type: Dict[str, List[str]]
 
-        possible_urls: Set[str] = set()
+        possible_urls = set()  # type: Set[str]
         if not self.soup:
             return []
 
-        # generator: str = ""
-        # try:
-        #     generator = self.soup.find(name="meta", property="generator").get("content")
-        # except AttributeError:
-        #     pass
-        # if generator and isinstance(generator, str):
-        #     if "wordpress" in generator.lower():
-        #         possible_urls.update(WORDPRESS_URLS)
-        site_names: Set[str] = set()
+        site_names = set()  # type: Set[str]
 
         metas = self.soup.find_all(name="meta")
         site_names.update(self.check_meta(metas))
@@ -206,21 +198,12 @@ class SiteMeta:
         site_names.update(self.check_links(links))
 
         for name in site_names:
-            urls: dict = site_feeds.get(name)
+            urls = site_feeds.get(name)  # type: List[str]
             if urls:
                 possible_urls.update(urls)
 
-        # def is_wordpress_link(links: list) -> bool:
-        #     for link in links:
-        #         if "wp-content" in link.get("href", ""):
-        #             return True
-        #     return False
-
-        # if is_wordpress_link(links):
-        #     possible_urls.update(WORDPRESS_URLS)
-
         # Return urls appended to the root domain to allow searching
-        urls: List[str] = []
+        urls = []  # type: List[str]
         for url in possible_urls:
             urls.append(self.domain + url)
         return urls
@@ -233,13 +216,13 @@ class SiteMeta:
         :param metas: ResultSet of Site Meta values
         :return: Set of possible CMS names
         """
-        meta_tests = {"generator": {"WordPress": "WordPress\s*(.*)"}}
+        meta_tests = {"generator": {"WordPress": "WordPress\\s*(.*)"}}
 
-        results: Set[str] = set()
+        results = set()  # type: Set[str]
 
-        def get_meta_value(type: str, metas: ResultSet):
-            for meta in metas:
-                if type in meta.get("property", ""):
+        def get_meta_value(inner_type: str, inner_metas: ResultSet):
+            for meta in inner_metas:
+                if inner_type in meta.get("property", ""):
                     yield meta.get("content")
 
         for test_type, tests in meta_tests.items():
@@ -255,10 +238,10 @@ class SiteMeta:
     def check_links(links: ResultSet) -> Set[str]:
         link_tests = {"WordPress": "/wp-content/"}
 
-        results: Set[str] = set()
+        results = set()  # type: Set[str]
 
-        def get_link_href(links: ResultSet):
-            for link in links:
+        def get_link_href(inner_links: ResultSet):
+            for link in inner_links:
                 yield link.get("href")
 
         link_hrefs = list(get_link_href(links))

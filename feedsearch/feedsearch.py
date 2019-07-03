@@ -104,7 +104,7 @@ def _find_feeds(
     :return: List of found feeds as FeedInfo objects.
     """
     # Format the URL properly. Use HTTPS
-    coerced_url: str = coerce_url(url)
+    coerced_url = coerce_url(url)  # type: str
 
     # Create Feedfinder
     finder = FeedFinder(
@@ -112,15 +112,12 @@ def _find_feeds(
     )
 
     # Initialise List of found Feeds
-    feeds: list = []
+    feeds = []  # type: list
 
     start_time = time.perf_counter()
 
     # Download the requested URL
     logger.info("Finding feeds at URL: %s", coerced_url)
-
-    # Get URL and check if feed
-    found_url = None
 
     # If the Caller provided an explicit HTTPS URL or asked for exceptions
     # to be raised, then make the first fetch without explicit exception
@@ -134,7 +131,7 @@ def _find_feeds(
             # Set context to raise RequestExceptions on first fetch.
             set_exceptions(True)
             found_url = finder.get_url(coerced_url)
-        except ReadTimeout as ex:
+        except ReadTimeout:
             # Set Local Context exception settings back to Caller provided settings.
             set_exceptions(False)
             # Coerce URL with HTTP instead of HTTPS
@@ -207,16 +204,19 @@ def _find_feeds(
     local, remote = finder.search_a_tags(finder.soup)
 
     # Check the local URLs.
-    local: list = [urljoin(coerced_url, l) for l in local]
+    local = [urljoin(coerced_url, l) for l in local]  # type: list
     found_local = finder.check_urls(local)
     feeds.extend(found_local)
     logger.info("Found %s local <a> links to feeds.", len(found_local))
 
     # Check the remote URLs.
-    remote: list = [urljoin(coerced_url, l) for l in remote]
-    found_remote = finder.check_urls(remote)
-    feeds.extend(found_remote)
-    logger.info("Found %s remote <a> links to feeds.", len(found_remote))
+    local = [urljoin(coerced_url, l) for l in local]  # type: list
+    # Check the remote URLs.
+    remote = [urljoin(coerced_url, l) for l in remote]  # type: list
+    hrefs = local + remote
+    found_hrefs = finder.check_urls(hrefs)
+    feeds.extend(found_hrefs)
+    logger.info("Found %s <a> links to feeds.", len(found_hrefs))
 
     search_time = int((time.perf_counter() - start_time) * 1000)
     logger.debug("Searched <a> links in %sms", search_time)

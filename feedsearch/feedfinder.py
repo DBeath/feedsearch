@@ -16,13 +16,13 @@ class FeedFinder:
     def __init__(
         self, coerced_url: str, feed_info: bool = False, favicon_data_uri: bool = False
     ) -> None:
-        self.get_feed_info: bool = feed_info
-        self.favicon_data_uri: bool = favicon_data_uri
-        self.soup: BeautifulSoup = None
-        self.site_meta: SiteMeta = None
-        self.feeds: list = []
-        self.urls: List[URL] = []
-        self.coerced_url: str = coerced_url
+        self.get_feed_info = feed_info  # type: bool
+        self.favicon_data_uri = favicon_data_uri  # type: bool
+        self.soup = None
+        self.site_meta = None
+        self.feeds = []  # type: list
+        self.urls = []  # type: List[URL]
+        self.coerced_url = coerced_url  # type: str
 
     def check_urls(self, urls: List[str]) -> List[FeedInfo]:
         """
@@ -67,11 +67,12 @@ class FeedFinder:
         """
         Search all links on a page for feeds
 
+        :param soup: BeautifulSoup dict
         :param url: Url of the soup
         :param rel: If true, only search for RSS discovery type "alternate" links
         :return: list
         """
-        links: List[str] = []
+        links = []  # type: List[str]
         if rel:
             link_tags = soup.find_all("link", rel="alternate")
         else:
@@ -148,7 +149,7 @@ class FeedFinder:
 
         :return: List of URL objects
         """
-        internal: List[URL] = []
+        internal = []  # type: List[URL]
         parsed_coerced = urlparse(self.coerced_url)
         for url in self.urls:
             if not url.is_feed and url.fetched and url.feedlike_url:
@@ -167,11 +168,11 @@ class FeedFinder:
 
         :return: List of FeedInfo objects
         """
-        found: List[FeedInfo] = []
+        found = []  # type: List[FeedInfo]
 
         for url in urls:
             if not url.is_feed and url.data:
-                to_search: List[str] = []
+                to_search = []  # type: List[str]
                 url_soup = create_soup(url.data)
                 to_search.extend(self.search_links(url_soup, url.url))
                 local, remote = self.search_a_tags(url_soup)

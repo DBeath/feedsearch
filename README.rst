@@ -9,6 +9,9 @@ Feedsearch
 .. image:: https://img.shields.io/pypi/pyversions/feedsearch.svg
     :target: https://pypi.python.org/pypi/feedsearch
 
+.. image:: https://pepy.tech/badge/feedsearch
+    :target: https://pepy.tech/project/feedsearch
+
 Feedsearch is a Python library for searching websites for RSS, Atom, and JSON feeds.
 
 It was originally based on
@@ -22,6 +25,10 @@ and subsequently maintained by
 Feedsearch now differs a lot with Feedfinder2, in that Feedsearch supports JSON feeds, allows for 
 optional fetching of Feed and Site metadata, and optionally searches the content of internal linked pages
 and default CMS feed locations.
+
+**Please Note:** Development of this library is no longer ongoing except in the case of fixing reported bugs.
+Further development of Feedsearch functionality has now moved to
+`Feedsearch Crawler <https://github.com/DBeath/feedsearch-crawler>`_.
 
 Usage
 -----

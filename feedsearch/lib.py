@@ -65,7 +65,7 @@ def _user_agent() -> str:
 
     :return: str
     """
-    return f"FeedSearch/{__version__} (https://github.com/DBeath/feedsearch)"
+    return "FeedSerach/{0} (https://github.com/DBeath/feedsearch)".format(__version__)
 
 
 @contextmanager
@@ -120,6 +120,7 @@ def requests_session(
     :param user_agent: User Agent for requests
     :param max_redirects: Maximum number of redirects
     :param timeout: Request Timeout
+    :param exceptions: If True, rethrow exceptions.
     :return: decorator function
     """
 
@@ -153,7 +154,7 @@ def get_url(
     url: str,
     timeout: Union[float, Tuple[float, float]] = default_timeout,
     exceptions: bool = False,
-    **kwargs,
+    **kwargs
 ) -> Optional[Response]:
     """
     Performs a GET request on a URL
@@ -193,7 +194,7 @@ def create_soup(text: str) -> BeautifulSoup:
     return BeautifulSoup(text, bs4_parser)
 
 
-def coerce_url(url: str, https: bool=True) -> str:
+def coerce_url(url: str, https: bool = True) -> str:
     """
     Coerce URL to valid format
 
@@ -203,14 +204,14 @@ def coerce_url(url: str, https: bool=True) -> str:
     """
     url.strip()
     if url.startswith("feed://"):
-        return url_fix(f"http://{url[7:]}")
+        return url_fix("http://{0}".format(url[7:]))
     for proto in ["http://", "https://"]:
         if url.startswith(proto):
             return url_fix(url)
     if https:
-        return url_fix(f"https://{url}")
+        return url_fix("https://{0}".format(url))
     else:
-        return url_fix(f"http://{url}")
+        return url_fix("http://{0}".format(url))
 
 
 def get_site_root(url: str) -> str:
@@ -262,9 +263,7 @@ def parse_header_links(value):
         except ValueError:
             url, params = val, ""
 
-        link = {}
-
-        link["url"] = url.strip("<> '\"")
+        link = {"url": url.strip("<> '\"")}
 
         for param in params.split(";"):
             try:

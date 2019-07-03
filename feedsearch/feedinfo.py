@@ -45,7 +45,7 @@ class FeedInfo:
         self.favicon_data_uri = favicon_data_uri
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.url!r})"
+        return "{0}({1})".format(self.__class__.__name__, self.url.__repr__)
 
     def __eq__(self, other):
         return self.url == other.url
@@ -219,8 +219,7 @@ class FeedInfo:
         Returns a tuple containing the hub url and the self url for
         a parsed feed.
 
-        :param parsed: An RSS feed parsed by feedparser
-        :type parsed: dict
+        :param feed: An RSS feed parsed by feedparser
         :return: tuple
         """
         links = feed.get("links", [])
@@ -288,7 +287,7 @@ class FeedInfo:
         :return: None
         """
         link_header = headers.get("Link")
-        links: list = []
+        links = []  # type: list
         if link_header:
             links = parse_header_links(link_header)
         return FeedInfo.find_hubs_and_self_links(links)
@@ -301,8 +300,8 @@ class FeedInfo:
         :param links: List of parsed HTTP Link Dicts
         :return: Tuple
         """
-        hub_urls: List[str] = []
-        self_url: str = ""
+        hub_urls = []  # type: List[str]
+        self_url = ""  # type: str
 
         if not links:
             return [], ""
@@ -310,7 +309,7 @@ class FeedInfo:
         for link in links:
             try:
                 if link["rel"] == "hub":
-                    href: str = link["href"]
+                    href = link["href"]  # type: str
                     hub_urls.append(href)
                 elif link["rel"] == "self":
                     self_url = link["href"]
