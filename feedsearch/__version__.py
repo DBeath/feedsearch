@@ -1,7 +1,7 @@
-__title__ = 'feedsearch'
-__description__ = 'Search sites for RSS, Atom, and JSON feeds'
-__url__ = 'https://github.com/DBeath/feedsearch'
-__version__ = '1.0.11'
-__author__ = 'David Beath'
-__author_email__ = 'davidgbeath@gmail.com'
-__license__ = 'MIT'
+__title__ = "feedsearch"
+__description__ = "Search sites for RSS, Atom, and JSON feeds"
+__url__ = "https://github.com/DBeath/feedsearch"
+__version__ = "1.0.12"
+__author__ = "David Beath"
+__author_email__ = "davidgbeath@gmail.com"
+__license__ = "MIT"

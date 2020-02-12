@@ -14,7 +14,7 @@ from .lib import (
     set_bs4_parser,
     timeit,
     get_exceptions,
-    set_exceptions
+    set_exceptions,
 )
 from requests import ReadTimeout
 
@@ -34,6 +34,7 @@ def search(
     max_redirects: int = 30,
     parser: str = "html.parser",
     exceptions: bool = False,
+    verify: Union[bool, str] = True,
 ) -> Union[List[FeedInfo], List[str]]:
     """
     Search for RSS or ATOM feeds at a given URL
@@ -55,6 +56,8 @@ def search(
     :param exceptions: If False, will gracefully handle Requests exceptions and
         attempt to keep searching. If True, will leave Requests exceptions
         uncaught to be handled externally.
+    :param verify: Verify SSL Certificates.
+        See Requests documentation: https://requests.readthedocs.io/en/master/user/advanced/#ssl-cert-verification
     :return: List of found feeds as FeedInfo objects or URL strings (depending on "as_url" parameter).
         FeedInfo objects will always have a "url" value.
     """
@@ -64,6 +67,7 @@ def search(
         max_redirects=max_redirects,
         timeout=timeout,
         exceptions=exceptions,
+        verify=verify,
     ):
         # Set BeautifulSoup parser
         set_bs4_parser(parser)

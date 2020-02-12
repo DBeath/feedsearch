@@ -97,11 +97,13 @@ In addition to the URL, the ``search`` function takes the following optional key
 - **user_agent**: *str*: User-Agent Header string. Defaults to Package name.
 - **timeout**: *float* or *tuple(float, float)*: Timeout for each request in the search (not a timeout for the ``search``
   method itself). Defaults to 3 seconds. See
-  `Requests documentation <http://docs.python-requests.org/en/master/user/advanced/#timeouts>`_ for more info.
+  `Requests timeout documentation <http://docs.python-requests.org/en/master/user/advanced/#timeouts>`_ for more info.
 - **max_redirects**: *int*: Maximum number of redirects for each request. Defaults to 30.
 - **parser**: *str*: BeautifulSoup parser for HTML parsing. Defaults to 'html.parser'.
 - **exceptions**: *bool*: If False, will gracefully handle Requests exceptions and attempt to keep searching. 
   If True, will leave Requests exceptions uncaught to be handled by the caller. Defaults False.
+- **verify**: *bool* or *str*: Verify SSL Certificates. See
+  `Requests SSL documentation <https://requests.readthedocs.io/en/master/user/advanced/#ssl-cert-verification>`_ for more info.
 - **favicon_data_uri**: *bool*: Convert Favicon to Data Uri. Defaults False.
 - **as_urls**: *bool*: Return found Feeds as a list of URL strings instead of FeedInfo objects.
 - **cms**: *bool*: Check default CMS feed location if no feeds already found and site is using a known CMS. Defaults True.

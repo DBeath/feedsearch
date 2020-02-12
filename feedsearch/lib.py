@@ -74,6 +74,7 @@ def create_requests_session(
     max_redirects: int = 30,
     timeout: Union[float, Tuple[float, float]] = default_timeout,
     exceptions: bool = False,
+    verify: Union[bool, str] = True,
 ):
     """
     Creates a Requests Session and sets User-Agent header and Max Redirects
@@ -83,6 +84,7 @@ def create_requests_session(
     :param timeout: Request Timeout
     :param exceptions: If False, will gracefully handle Requests exceptions and attempt to keep searching.
                        If True, will leave Requests exceptions uncaught to be handled externally.
+    :param verify: Verify SSL Certificates.
     :return: Requests session
     """
     # Create a request session
@@ -93,6 +95,7 @@ def create_requests_session(
     session.headers.update({"User-Agent": user_agent})
 
     session.max_redirects = max_redirects
+    session.verify = verify
 
     # Add request session to local context
     setattr(LOCAL_CONTEXT, "session", session)
@@ -113,6 +116,7 @@ def requests_session(
     max_redirects: int = 30,
     timeout: Union[float, Tuple[float, float]] = default_timeout,
     exceptions: bool = False,
+    verify: Union[bool, str] = True,
 ):
     """
     Wraps a requests session around a function.
@@ -121,6 +125,7 @@ def requests_session(
     :param max_redirects: Maximum number of redirects
     :param timeout: Request Timeout
     :param exceptions: If True, rethrow exceptions.
+    :param verify: Verify SSL Certificates.
     :return: decorator function
     """
 
@@ -128,7 +133,7 @@ def requests_session(
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             with create_requests_session(
-                user_agent, max_redirects, timeout, exceptions
+                user_agent, max_redirects, timeout, exceptions, verify
             ):
                 # Call wrapped function
                 return func(*args, **kwargs)
