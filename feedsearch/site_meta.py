@@ -247,6 +247,8 @@ class SiteMeta:
         link_hrefs = list(get_link_href(links))
         for site_name, pattern in link_tests.items():
             for href in link_hrefs:
+                if not href:
+                    continue
                 if re.search(pattern, href, flags=re.I):
                     results.add(site_name)
 
