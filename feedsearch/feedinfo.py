@@ -45,7 +45,7 @@ class FeedInfo:
         self.favicon_data_uri = favicon_data_uri
 
     def __repr__(self):
-        return "{0}({1})".format(self.__class__.__name__, self.url.__repr__)
+        return "{0}({1})".format(self.__class__.__name__, self.url.__repr__())
 
     def __eq__(self, other):
         return self.url == other.url
